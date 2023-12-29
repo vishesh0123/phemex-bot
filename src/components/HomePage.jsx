@@ -4,6 +4,7 @@ import KeyInput from './KeyInput'
 import PairsMenu from './PairsMenu'
 import SwitchMode from './SwitchMode'
 import TradingMode from './TradingMode'
+import PlaceOrderSpot from './PlaceOrderSpot'
 
 function HomePage({ ml, mt }) {
     const [apiKey, setApiKey] = useState('')
@@ -25,9 +26,13 @@ function HomePage({ ml, mt }) {
         }}
         >
             <SwitchMode setTestMode={setTestMode} />
-            <KeyInput setApiKey={setApiKey} />
-            <PairsMenu testMode={testMode} tradingType={tradingType} apiKey={apiKey} />
+            <Box width='580px' display='flex' justifyContent='space-between' alignItems='center'>
+                <KeyInput setApiKey={setApiKey} />
+                <PairsMenu testMode={testMode} tradingType={tradingType} apiKey={apiKey} />
+            </Box>
+
             <TradingMode tradingType={tradingType} setTradingType={setTradingType} />
+            <PlaceOrderSpot />
 
         </Box>
     )
