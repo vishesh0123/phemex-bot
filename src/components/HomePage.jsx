@@ -10,11 +10,13 @@ function HomePage({ ml, mt }) {
     const [apiKey, setApiKey] = useState('')
     const [testMode, setTestMode] = useState(false)
     const [tradingType, setTradingType] = useState(1)
+    const [pairs, setPairs] = useState({})
+    const [selectedPair, setSelectedPair] = useState('')
 
     return (
         <Box sx={{
             width: '600px',
-            height: '650px',
+            height: '680px',
             border: '5px solid white',
             marginLeft: ml,
             marginTop: mt,
@@ -25,14 +27,26 @@ function HomePage({ ml, mt }) {
             flexDirection: 'column'
         }}
         >
-            <SwitchMode setTestMode={setTestMode} />
-            <Box width='580px' display='flex' justifyContent='space-between' alignItems='center'>
+            <Box width='550px' display='flex' justifyContent='space-between' alignItems='center'>
                 <KeyInput setApiKey={setApiKey} />
-                <PairsMenu testMode={testMode} tradingType={tradingType} apiKey={apiKey} />
+                <SwitchMode setTestMode={setTestMode} />
             </Box>
 
-            <TradingMode tradingType={tradingType} setTradingType={setTradingType} />
-            <PlaceOrderSpot />
+            <Box width='550px' display='flex' justifyContent='space-between' alignItems='center'>
+                <TradingMode tradingType={tradingType} setTradingType={setTradingType} />
+                <PairsMenu
+                    testMode={testMode}
+                    tradingType={tradingType}
+                    apiKey={apiKey}
+                    pairs={pairs}
+                    setPairs={setPairs}
+                    selectedPair={selectedPair}
+                    setSelectedPair={setSelectedPair}
+                />
+            </Box>
+
+
+            <PlaceOrderSpot pairs={pairs} selectedPair={selectedPair} testMode={testMode} apiKey={apiKey} />
 
         </Box>
     )

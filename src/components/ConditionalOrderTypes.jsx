@@ -1,7 +1,7 @@
 import { ToggleButton, ToggleButtonGroup } from '@mui/material'
 import React from 'react'
 
-function ConditionalOrderTypes() {
+function ConditionalOrderTypes({ slSubType, setSlSubType }) {
     const togglesx = {
         color: 'white',
         border: '1px solid white',
@@ -12,8 +12,8 @@ function ConditionalOrderTypes() {
             fontSize: '1.1rem'
 
         },
-        width: '150px',
-        height: '30px'
+        width: '100px',
+        height: '15px'
     }
     return (
 
@@ -23,9 +23,11 @@ function ConditionalOrderTypes() {
                 '& .MuiToggleButtonGroup-grouped': {
                     border: '1px solid white',
                 },
-                marginTop: '2px',
+                marginTop: '20px',
                 marginLeft: '20px'
             }}
+            value={slSubType}
+            onChange={(event) => {setSlSubType(event.target.value)}}
         >
             <ToggleButton value='limit' sx={togglesx}>Limit</ToggleButton>
             <ToggleButton value='market' sx={togglesx}>Market</ToggleButton>

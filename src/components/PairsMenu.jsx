@@ -2,10 +2,7 @@ import { FormControl, InputLabel, MenuItem, Select } from '@mui/material'
 import React, { useEffect, useState } from 'react'
 import LoadPairs from './LoadPairs';
 
-function PairsMenu({ testMode, tradingType, apiKey }) {
-    const [pairs, setPairs] = useState({})
-    const [selectedPair, setSelectedPair] = useState('')
-
+function PairsMenu({ testMode, tradingType, apiKey, pairs, setPairs, selectedPair, setSelectedPair }) {
     useEffect(() => {
         setSelectedPair('')
         setPairs({})

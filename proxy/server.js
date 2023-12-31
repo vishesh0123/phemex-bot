@@ -10,6 +10,7 @@ const PORT = 8080;
 
 // Add headers for preflight requests
 app.use((req, res, next) => {
+
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
     // Include the 'x-phemex-access-token' in the allowed headers
@@ -28,6 +29,18 @@ app.use('/public-api', createProxyMiddleware({
     changeOrigin: true,
     pathRewrite: {
         [`^/public-api`]: '',
+    },
+    onProxyReq: (proxyReq, req, res) => {
+        // Ensure the headers are set on the outgoing request to the API
+        if (req.headers['x-phemex-access-token']) {
+            proxyReq.setHeader('x-phemex-access-token', req.headers['x-phemex-access-token']);
+        }
+        if (req.headers['x-phemex-request-expiry']) {
+            proxyReq.setHeader('x-phemex-request-expiry', req.headers['x-phemex-request-expiry']);
+        }
+        if (req.headers['x-phemex-request-signature']) {
+            proxyReq.setHeader('x-phemex-request-signature', req.headers['x-phemex-request-signature']);
+        }
     }
 }));
 
@@ -37,6 +50,18 @@ app.use('/testnet-api', createProxyMiddleware({
     changeOrigin: true,
     pathRewrite: {
         [`^/testnet-api`]: '',
+    },
+    onProxyReq: (proxyReq, req, res) => {
+        // Ensure the headers are set on the outgoing request to the API
+        if (req.headers['x-phemex-access-token']) {
+            proxyReq.setHeader('x-phemex-access-token', req.headers['x-phemex-access-token']);
+        }
+        if (req.headers['x-phemex-request-expiry']) {
+            proxyReq.setHeader('x-phemex-request-expiry', req.headers['x-phemex-request-expiry']);
+        }
+        if (req.headers['x-phemex-request-signature']) {
+            proxyReq.setHeader('x-phemex-request-signature', req.headers['x-phemex-request-signature']);
+        }
     }
 }));
 
