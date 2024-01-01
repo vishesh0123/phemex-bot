@@ -1,11 +1,13 @@
 import express from 'express';
 import { createProxyMiddleware } from 'http-proxy-middleware';
+import fs from 'fs';
 
 const app = express();
 
 // Configuration for public and testnet
 const PUBLIC_API_URL = "https://api.phemex.com";
-const TESTNET_API_URL = "https://testnet-api.phemex.com";
+// const TESTNET_API_URL = "https://testnet-api.phemex.com";
+const TESTNET_API_URL = "https://api.phemex.com/moc";
 const PORT = 8080;
 
 // Add headers for preflight requests
@@ -64,6 +66,22 @@ app.use('/testnet-api', createProxyMiddleware({
         }
     }
 }));
+
+// New endpoint to handle saving the merged configuration file
+app.post('/save-config', express.json(), (req, res) => {
+    try {
+        const mergedConfig = req.body; // Assuming the merged configuration is sent in the request body
+        const configFileContent = JSON.stringify(mergedConfig, null, 2);
+
+        // Save the configuration to a file (adjust the file path as needed)
+        fs.writeFileSync('settings.json', configFileContent);
+
+        res.status(200).json({ success: true, message: 'Configuration saved successfully.' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, message: 'Internal server error.' });
+    }
+});
 
 app.listen(PORT, () => {
     console.log(`Server listening on port ${PORT}`);

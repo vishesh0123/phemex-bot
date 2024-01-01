@@ -28,9 +28,9 @@ function OrderTypeToggle({ orderSubType, setOrderSubType }) {
             value={orderSubType}
             onChange={(event, value) => { if (value !== null) { setOrderSubType(value) } }}
         >
-            <ToggleButton value='limit' sx={togglesx}>Limit</ToggleButton>
-            <ToggleButton value='market' sx={togglesx}>Market</ToggleButton>
-            <ToggleButton value='conditional' sx={togglesx}>Stop Loss</ToggleButton>
+            <ToggleButton value='Limit' sx={togglesx}>Limit</ToggleButton>
+            <ToggleButton value='Market' sx={togglesx}>Market</ToggleButton>
+            <ToggleButton value='Conditional' sx={togglesx}>Conditional</ToggleButton>
 
         </ToggleButtonGroup>
     )

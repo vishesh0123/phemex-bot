@@ -44,8 +44,9 @@ function TradingMode({ tradingType, setTradingType }) {
             >
                 <MenuItem value={1} >Spot Market</MenuItem>
                 <MenuItem value={2}>Margin Trading</MenuItem>
-                <MenuItem value={4}>USD$-M Perpetual</MenuItem>
                 <MenuItem value={3}>COIN-M & USD-M Perpetual</MenuItem>
+                <MenuItem value={4}>USD$-M Perpetual (Hedged Contracts)</MenuItem>
+                
             </Select>
         </FormControl>
 

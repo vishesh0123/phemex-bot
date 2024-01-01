@@ -1,12 +1,12 @@
 import React from 'react'
 import { TextField } from '@mui/material';
 
-function KeyInput({ setApiKey }) {
+function KeyInput({ text, type, setting, saveSetting }) {
     return (
         <>
             <TextField
                 id='outlined-required'
-                label='Api Key'
+                label={text}
                 InputLabelProps={{
                     color: 'secondary',
                     sx: {
@@ -16,7 +16,8 @@ function KeyInput({ setApiKey }) {
                 }}
                 color='secondary'
                 sx={{
-                    width: '250px',
+                    width: '400px',
+                    height: '120px',
                     '& .MuiOutlinedInput-root': {
                         '& fieldset': {
                             borderColor: 'white', // Default border color
@@ -38,8 +39,8 @@ function KeyInput({ setApiKey }) {
                         color: 'white'
                     }
                 }}
-                type='password'
-                onChange={(event) => { setApiKey(event.target.value) }}
+                type={type}
+                onChange={(event) => { saveSetting({ ...setting, [text]: event.target.value }) }}
             />
 
 

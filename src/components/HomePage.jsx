@@ -4,7 +4,7 @@ import KeyInput from './KeyInput'
 import PairsMenu from './PairsMenu'
 import SwitchMode from './SwitchMode'
 import TradingMode from './TradingMode'
-import PlaceOrderSpot from './PlaceOrderSpot'
+import PlaceOrderPerps from './PlaceOrderPerps'
 
 function HomePage({ ml, mt }) {
     const [apiKey, setApiKey] = useState('')
@@ -28,7 +28,7 @@ function HomePage({ ml, mt }) {
         }}
         >
             <Box width='550px' display='flex' justifyContent='space-between' alignItems='center'>
-                <KeyInput setApiKey={setApiKey} />
+                {/* <KeyInput setApiKey={setApiKey} /> */}
                 <SwitchMode setTestMode={setTestMode} />
             </Box>
 
@@ -46,7 +46,7 @@ function HomePage({ ml, mt }) {
             </Box>
 
 
-            <PlaceOrderSpot pairs={pairs} selectedPair={selectedPair} testMode={testMode} apiKey={apiKey} />
+            {tradingType === 4 && <PlaceOrderPerps pairs={pairs} selectedPair={selectedPair} testMode={testMode} apiKey={apiKey} />}
 
         </Box>
     )

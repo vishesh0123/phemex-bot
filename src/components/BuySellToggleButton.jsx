@@ -7,12 +7,12 @@ function BuySellToggleButton({ orderType, setOrderType }) {
         border: '1px solid white',
         '&.Mui-selected, &.Mui-selected:hover': {
             color: 'white',
-            bgcolor: orderType == 'buy' ? 'green' : 'red',
-            fontWeight:'bold'
-            
+            bgcolor: orderType == 'Buy' ? 'green' : 'red',
+            fontWeight: 'bold'
+
         },
-        width:'200px',
-        height:'30px'
+        width: '200px',
+        height: '30px'
     }
     return (
         <ToggleButtonGroup
@@ -26,8 +26,8 @@ function BuySellToggleButton({ orderType, setOrderType }) {
             value={orderType}
             onChange={(event, value) => { if (value !== null) { setOrderType(value) } }}
         >
-            <ToggleButton value='buy' sx={togglesx}>Buy</ToggleButton>
-            <ToggleButton value='sell' sx={togglesx}>Sell</ToggleButton>
+            <ToggleButton value='Buy' sx={togglesx}>Buy(LONG)</ToggleButton>
+            <ToggleButton value='Sell' sx={togglesx}>Sell(SHORT)</ToggleButton>
         </ToggleButtonGroup>
     )
 }

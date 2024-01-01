@@ -29,8 +29,8 @@ function ConditionalOrderTypes({ slSubType, setSlSubType }) {
             value={slSubType}
             onChange={(event) => {setSlSubType(event.target.value)}}
         >
-            <ToggleButton value='limit' sx={togglesx}>Limit</ToggleButton>
-            <ToggleButton value='market' sx={togglesx}>Market</ToggleButton>
+            <ToggleButton value='Limit' sx={togglesx}>Limit</ToggleButton>
+            <ToggleButton value='Market' sx={togglesx}>Market</ToggleButton>
 
         </ToggleButtonGroup >
     )
