@@ -4,24 +4,14 @@ import BotConfig from '../../bot.config'
 import axios from 'axios'
 import CryptoJS from 'crypto-js';
 
-function LoadPairs({ testMode, tradingType, apiKey, setPairs }) {
+function LoadPairs({ testMode, tradingType, setPairs }) {
 
   const loadPairs = async () => {
     const apiEndPoint = testMode ?
       BotConfig.proxy.testnet.rest + "/public/products" :
       BotConfig.proxy.public.rest + "/public/products";
 
-    const currentUnixEpochTime = Math.floor(Date.now() / 1000) + 60;
-    const sigData = "/public/products" + currentUnixEpochTime;
-    const signature = CryptoJS.HmacSHA256(sigData, apiKey).toString();
-
-    const data = await axios.get(apiEndPoint, {
-      headers: {
-        'x-phemex-access-token': apiKey,
-        'x-phemex-request-expiry': currentUnixEpochTime,
-        'x-phemex-request-signature': signature
-      }
-    })
+    const data = await axios.get(apiEndPoint)
 
     if (tradingType == 4) {
       setPairs(data.data.data.perpProductsV2)
@@ -36,7 +26,9 @@ function LoadPairs({ testMode, tradingType, apiKey, setPairs }) {
     <Button sx={{
       color: 'white',
       border: '1px solid white',
-      fontSize: '0.8rem'
+      fontSize: '0.8rem',
+      fontWeight:'bold',
+      ml:'10px'
     }}
       onClick={async () => { await loadPairs() }}
     >

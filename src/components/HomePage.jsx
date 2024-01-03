@@ -37,7 +37,6 @@ function HomePage({ ml, mt }) {
                 <PairsMenu
                     testMode={testMode}
                     tradingType={tradingType}
-                    apiKey={apiKey}
                     pairs={pairs}
                     setPairs={setPairs}
                     selectedPair={selectedPair}
@@ -46,7 +45,7 @@ function HomePage({ ml, mt }) {
             </Box>
 
 
-            {tradingType === 4 && <PlaceOrderPerps pairs={pairs} selectedPair={selectedPair} testMode={testMode} apiKey={apiKey} />}
+            {<PlaceOrderPerps pairs={pairs} selectedPair={selectedPair} testMode={testMode} apiKey={apiKey} />}
 
         </Box>
     )

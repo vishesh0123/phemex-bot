@@ -1,17 +1,29 @@
-import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, IconButton, InputLabel, MenuItem, Select } from '@mui/material';
+import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, IconButton, InputLabel, MenuItem, Select, Typography } from '@mui/material';
 import React, { useState } from 'react';
 import KeyInput from './KeyInput';
 import SettingsIcon from '@mui/icons-material/Settings';
 import axios from 'axios';
+import PairsMenu from './PairsMenu'
+import file from '../../settings.json';
 
 function BotSettingPage() {
     const [setting, saveSetting] = useState({});
     const [open, setOpen] = useState(false);
-    const [orderType, setOrderType] = useState(1);
-    const [leverageMode, setLeverageMode] = useState(1)
+    const [orderType, setOrderType] = useState(Number(file.orderType));
+    const [leverageMode, setLeverageMode] = useState(Number(file.marginMode))
+    const [posMode, setPosMode] = useState(Number(file.posMode))
+    const [pairs, setPairs] = useState({})
+    const [selectedPair, setSelectedPair] = useState('')
 
     const saveSettingInconfig = async () => {
-        const merged = { ...setting }
+        const merged = {
+            ...file,
+            ...setting,
+            orderType: orderType,
+            marginMode: leverageMode,
+            posMode: posMode,
+            pair: selectedPair === '' ? file.pair : pairs[selectedPair].symbol,
+        }
         try {
             const response = await axios.post('http://127.0.0.1:8080/save-config', merged);
             if (response.data.success) {
@@ -19,6 +31,7 @@ function BotSettingPage() {
             } else {
                 console.error('Failed to save configuration:', response.data.message);
             }
+            console.log(file);
         } catch (error) {
             console.error('Error saving configuration:', error.message);
 
@@ -48,19 +61,34 @@ function BotSettingPage() {
                             display: 'flex',
                             flexDirection: 'column',
                             alignItems: 'center',
-                            width: '400px',
-                            height: '900px'
+                            width: '500px',
+                            height: '1300px'
                         }}
                     >
-                        <KeyInput text='Api Key' type='password' setting={setting} saveSetting={saveSetting} />
-                        <KeyInput text='Api Secret' type='password' setting={setting} saveSetting={saveSetting} />
-                        <KeyInput text='Take Profit(%)' type='text' setting={setting} saveSetting={saveSetting} />
-                        <KeyInput text='Stop Loss(%)' type='text' setting={setting} saveSetting={saveSetting} />
+                        <KeyInput text='apiKey' type='password' setting={setting} saveSetting={saveSetting} value={file.apiKey} />
+                        <KeyInput text='apiSecret' type='password' setting={setting} saveSetting={saveSetting} value={file.apiSecret} />
+                        <KeyInput text='takeProfit' type='text' setting={setting} saveSetting={saveSetting} value={file.takeProfit} />
+                        <KeyInput text='stopLoss' type='text' setting={setting} saveSetting={saveSetting} value={file.stopLoss} />
+                        <KeyInput text='trailingStopLoss' type='text' setting={setting} saveSetting={saveSetting} value={file.trailingStopLoss} />
+                        <Box sx={{ display: 'flex', justifyContent: 'space-evenly', mt: '20px', mb: '20px' }}>
+                            <PairsMenu
+                                testMode={false}
+                                tradingType={4}
+                                pairs={pairs}
+                                setPairs={setPairs}
+                                selectedPair={selectedPair}
+                                setSelectedPair={setSelectedPair}
+                            />
+                        </Box>
+                        <Typography sx={{ 'color': 'white', fontWeight: 'bold' }}>SELECTED PAIR : {file.pair}</Typography>
+
                         <FormControl sx={{
                             width: '400px',
                             mt: '10px',
+                            ml: '20px',
                             pb: '10px',
-                            color: 'white', // Default color
+                            color: 'white',
+                            fontWeight: 'bold', // Default color
                             '& .MuiInputLabel-root': { // Label styles
                                 color: 'white', // Label color
                             },
@@ -80,12 +108,13 @@ function BotSettingPage() {
                             },
                             '& .MuiSelect-select': {
                                 color: 'white', // Select text color
+                                fontWeight: 'bold'
                             },
                             '& .MuiSvgIcon-root': { // Dropdown icon color
                                 color: 'white'
                             }
                         }}>
-                            <InputLabel id='ordertype' sx={{ color: 'white !important' }}>Order Type</InputLabel>
+                            <InputLabel id='ordertype' sx={{ color: 'white !important', fontWeight: 'bold' }}>orderType</InputLabel>
                             <Select
                                 labelId='ordertype'
                                 label='Order Type'
@@ -95,27 +124,25 @@ function BotSettingPage() {
                                     },
                                 }}
                                 value={orderType}
-                                onChange={(event) => { setOrderType(Number(event.target.value)); saveSetting({ ...setting, orderType: Number(event.target.value) }) }}
+                                onChange={(event) => { setOrderType(Number(event.target.value)) }}
                             >
-                                <MenuItem value={1} >MARKET</MenuItem>
-                                <MenuItem value={2}>LIMIT</MenuItem>
-                                <MenuItem value={3}>STOP</MenuItem>
-                                <MenuItem value={4}>STOP LIMIT</MenuItem>
-                                <MenuItem value={5}>MARKET IF TOUCHED</MenuItem>
-                                <MenuItem value={6}>LIMIT IF TOUCHED</MenuItem>
+                                <MenuItem sx={{ 'fontWeight': 'bold' }} value={1} >MARKET</MenuItem>
+                                <MenuItem sx={{ 'fontWeight': 'bold' }} value={2}>LIMIT</MenuItem>
+                                <MenuItem sx={{ 'fontWeight': 'bold' }} value={3}>LIMIT DISTANCE</MenuItem>
 
                             </Select>
                         </FormControl>
-                        <KeyInput text='Limit Price(%)' type='text' setting={setting} saveSetting={saveSetting} />
-                        <KeyInput text='Trigger Price(%)' type='text' setting={setting} saveSetting={saveSetting} />
-                        <KeyInput text='Daily Profit Threshold Limit(%)' setting={setting} type='text' saveSetting={saveSetting} />
-                        <KeyInput text='Daily Loss Threshold Limit(%)' setting={setting} type='text' saveSetting={saveSetting} />
-                        <KeyInput text='Default Leverage X' type='text' setting={setting} saveSetting={saveSetting} />
-                        <KeyInput text='Max USDT Per Trade' type='text' setting={setting} saveSetting={saveSetting} />
+                        <KeyInput text='limitPrice' type='text' setting={setting} saveSetting={saveSetting} value={file.limitPrice} />
+                        <KeyInput text='limitDistance' type='text' setting={setting} saveSetting={saveSetting} value={file.limitDistance} />
+                        <KeyInput text='dailyProfitThreshold' setting={setting} type='text' saveSetting={saveSetting} value={file.dailyProfitThreshold} />
+                        <KeyInput text='dailyLossThreshold' setting={setting} type='text' saveSetting={saveSetting} value={file.dailyLossThreshold} />
+                        <KeyInput text='leverage' type='text' setting={setting} saveSetting={saveSetting} value={file.leverage} />
+                        <KeyInput text='maxUSDTperTrade' type='text' setting={setting} saveSetting={saveSetting} value={file.maxUSDTperTrade} />
+                        <KeyInput text='canclelimitOrderTime' type='text' setting={setting} saveSetting={saveSetting} value={file.canclelimitOrderTime} />
                         <FormControl sx={{
                             width: '400px',
-                            mt: '10px',
-                            pb: '10px',
+                            mt: '20px',
+                            ml: '20px',
                             color: 'white', // Default color
                             '& .MuiInputLabel-root': { // Label styles
                                 color: 'white', // Label color
@@ -132,16 +159,18 @@ function BotSettingPage() {
                                 },
                                 '& input': {
                                     color: 'white', // Input text color
+                                    fontWeight: 'bold'
                                 },
                             },
                             '& .MuiSelect-select': {
                                 color: 'white', // Select text color
+                                fontWeight: 'bold'
                             },
                             '& .MuiSvgIcon-root': { // Dropdown icon color
                                 color: 'white'
                             }
                         }}>
-                            <InputLabel id='ordertype' sx={{ color: 'white !important' }}>Leverage Mode</InputLabel>
+                            <InputLabel id='ordertype' sx={{ color: 'white !important', fontWeight: 'bold' }}>marginMode</InputLabel>
                             <Select
                                 labelId='ordertype'
                                 label='Order Type'
@@ -151,10 +180,58 @@ function BotSettingPage() {
                                     },
                                 }}
                                 value={leverageMode}
-                                onChange={(event) => { setLeverageMode(Number(event.target.value)); saveSetting({ ...setting, leverageMode: Number(event.target.value) }) }}
+                                onChange={(event) => { setLeverageMode(Number(event.target.value)) }}
                             >
-                                <MenuItem value={1} >CROSS MARGIN MODE</MenuItem>
-                                <MenuItem value={2}>ISOLATED MARGIN MODE</MenuItem>
+                                <MenuItem sx={{ 'fontWeight': 'bold' }} value={1} >CROSS MARGIN MODE</MenuItem>
+                                <MenuItem sx={{ 'fontWeight': 'bold' }} value={2}>ISOLATED MARGIN MODE</MenuItem>
+
+                            </Select>
+                        </FormControl>
+                        <FormControl sx={{
+                            width: '400px',
+                            mt: '20px',
+                            ml: '20px',
+                            color: 'white', // Default color
+                            '& .MuiInputLabel-root': { // Label styles
+                                color: 'white', // Label color
+                            },
+                            '& .MuiOutlinedInput-root': {
+                                '& fieldset': {
+                                    borderColor: 'white', // Default border color
+                                },
+                                '&:hover fieldset': {
+                                    borderColor: 'white', // Hover border color
+                                },
+                                '&.Mui-focused fieldset': {
+                                    borderColor: 'white', // Focused border color
+                                },
+                                '& input': {
+                                    color: 'white', // Input text color
+                                    fontWeight: 'bold'
+                                },
+                            },
+                            '& .MuiSelect-select': {
+                                color: 'white', // Select text color
+                                fontWeight: 'bold'
+                            },
+                            '& .MuiSvgIcon-root': { // Dropdown icon color
+                                color: 'white'
+                            }
+                        }}>
+                            <InputLabel id='ordertype' sx={{ color: 'white !important', fontWeight: 'bold' }}>posMode</InputLabel>
+                            <Select
+                                labelId='ordertype'
+                                label='Order Type'
+                                sx={{
+                                    '& .MuiSelect-icon': {
+                                        color: 'white', // Dropdown icon color
+                                    },
+                                }}
+                                value={posMode}
+                                onChange={(event) => { setPosMode(Number(event.target.value)); saveSetting({ ...setting, posMode: Number(event.target.value) }) }}
+                            >
+                                <MenuItem sx={{ 'fontWeight': 'bold' }} value={1} >ONE WAY MODE</MenuItem>
+                                <MenuItem sx={{ 'fontWeight': 'bold' }} value={2}>HEDGED MODE</MenuItem>
 
                             </Select>
                         </FormControl>
@@ -165,21 +242,16 @@ function BotSettingPage() {
                                 color: 'white',
                                 border: '1px solid white',
                                 fontSize: '0.8rem',
+                                fontWeight: 'bold',
+                                width:'200px',
+                                height:'50px'
+                            
                             }}
-                            onClick={() => { saveSettingInconfig() }}
+                            onClick={async () => { await saveSettingInconfig() }}
                         >
                             SAVE SETTING
                         </Button>
-                        <Button
-                            sx={{
-                                marginTop: '10px',
-                                color: 'white',
-                                border: '1px solid white',
-                                fontSize: '0.8rem',
-                            }}
-                        >
-                            RESET
-                        </Button>
+
                     </Box>
                 </DialogContent>
                 <DialogActions sx={{ background: 'black', justifyContent: 'center' }}>

@@ -2,7 +2,7 @@ import { FormControl, InputLabel, MenuItem, Select } from '@mui/material'
 import React, { useEffect, useState } from 'react'
 import LoadPairs from './LoadPairs';
 
-function PairsMenu({ testMode, tradingType, apiKey, pairs, setPairs, selectedPair, setSelectedPair }) {
+function PairsMenu({ testMode, tradingType, pairs, setPairs, selectedPair, setSelectedPair }) {
     useEffect(() => {
         setSelectedPair('')
         setPairs({})
@@ -32,12 +32,13 @@ function PairsMenu({ testMode, tradingType, apiKey, pairs, setPairs, selectedPai
                 },
                 '& .MuiSelect-select': {
                     color: 'white', // Select text color
+                    fontWeight:'bold'
                 },
                 '& .MuiSvgIcon-root': { // Dropdown icon color
                     color: 'white'
                 }
             }}>
-                <InputLabel id='pairs' sx={{ color: 'white !important' }}>Pairs</InputLabel>
+                <InputLabel id='pairs' sx={{ color: 'white !important' , fontWeight:'bold' }}>Pair</InputLabel>
                 <Select
                     labelId='pairs'
                     label='Pairs'
@@ -51,11 +52,7 @@ function PairsMenu({ testMode, tradingType, apiKey, pairs, setPairs, selectedPai
                 >
                     {!(Object.keys(pairs).length == 0) && Object.keys(pairs).map((key) => {
                         if (tradingType == 4 && pairs[key].status === 'Listed') {
-                            return <MenuItem key={key} value={key}>{pairs[key].displaySymbol}</MenuItem>
-                        }
-
-                        if (tradingType == 3 && pairs[key].status === 'Listed' && pairs[key].type === 'Perpetual') {
-                            return <MenuItem key={key} value={key}>{pairs[key].displaySymbol}</MenuItem>
+                            return <MenuItem key={key} value={key}>{pairs[key].symbol}</MenuItem>
                         }
 
                         if ((tradingType == 1 || tradingType == 2) && pairs[key].status === 'Listed' && pairs[key].type === 'Spot') {
@@ -68,7 +65,6 @@ function PairsMenu({ testMode, tradingType, apiKey, pairs, setPairs, selectedPai
             <LoadPairs
                 testMode={testMode}
                 tradingType={tradingType}
-                apiKey={apiKey}
                 setPairs={setPairs}
             />
         </>

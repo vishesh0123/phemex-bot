@@ -1,12 +1,14 @@
-import React from 'react'
-import { TextField } from '@mui/material';
+import React, { useState } from 'react'
+import { InputAdornment, TextField } from '@mui/material';
 
-function KeyInput({ text, type, setting, saveSetting }) {
+function KeyInput({ text, type, setting, saveSetting, value }) {
+    const [editable, setEditable] = useState(false)
+    const [input, setInput] = useState('')
     return (
         <>
             <TextField
                 id='outlined-required'
-                label={text}
+                // label={text}
                 InputLabelProps={{
                     color: 'secondary',
                     sx: {
@@ -14,33 +16,43 @@ function KeyInput({ text, type, setting, saveSetting }) {
                         color: 'white' // This will make the label text white
                     }
                 }}
-                color='secondary'
+                InputProps={{
+                    startAdornment: (
+                        <InputAdornment position="start" >
+                            {text}
+                        </InputAdornment>
+                    ),
+                }}
+                // color='secondary'
                 sx={{
                     width: '400px',
-                    height: '120px',
+                    mt: 3,
+                    ml: '20px',
                     '& .MuiOutlinedInput-root': {
+                        height: '40px',
+                        color: 'white', // Text color
                         '& fieldset': {
-                            borderColor: 'white', // Default border color
+                            borderColor: 'white', // Border color
                         },
                         '&:hover fieldset': {
-                            borderColor: 'white', // Hover border color
+                            borderColor: 'white', // Border color (hover state)
                         },
                         '&.Mui-focused fieldset': {
-                            borderColor: 'white', // Focused border color
-                        },
-                        '& input': {
-                            color: 'white', // Input text color
+                            borderColor: 'white', // Border color (focused state)
                         },
                     },
-                    '& .MuiInputLabel-root': { // Label color
-                        color: 'white'
-                    },
-                    '& .MuiInputLabel-root.Mui-focused': { // Label color when the input is focused
+                    '& .MuiTypography-root': {
                         color: 'white'
                     }
+
                 }}
                 type={type}
-                onChange={(event) => { saveSetting({ ...setting, [text]: event.target.value }) }}
+                onChange={(event) => { saveSetting({ ...setting, [text]: event.target.value }); setInput(event.target.value) }}
+                value={editable ? input : value}
+                onClick={() => { setInput(value); setEditable(true) }}
+
+
+
             />
 
 
