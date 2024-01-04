@@ -42,7 +42,7 @@ function TradingMode({ tradingType, setTradingType }) {
                 value={tradingType}
                 onChange={(event) => { setTradingType(Number(event.target.value)) }}
             >
-                <MenuItem value={1} >Spot Market</MenuItem>
+                {/* <MenuItem value={1} >Spot Market</MenuItem> */}
                 <MenuItem value={4}>USD$-M Perpetual (Hedged Contracts)</MenuItem>
 
             </Select>

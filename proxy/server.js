@@ -83,6 +83,10 @@ app.post('/save-config', express.json(), (req, res) => {
     }
 });
 
+app.post('/trade', (req, res) => {
+
+})
+
 app.listen(PORT, () => {
     console.log(`Server listening on port ${PORT}`);
 });

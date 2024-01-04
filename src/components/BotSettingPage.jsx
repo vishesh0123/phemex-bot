@@ -139,6 +139,7 @@ function BotSettingPage() {
                         <KeyInput text='leverage' type='text' setting={setting} saveSetting={saveSetting} value={file.leverage} />
                         <KeyInput text='maxUSDTperTrade' type='text' setting={setting} saveSetting={saveSetting} value={file.maxUSDTperTrade} />
                         <KeyInput text='canclelimitOrderTime' type='text' setting={setting} saveSetting={saveSetting} value={file.canclelimitOrderTime} />
+                        <KeyInput text='discordWebhook' type='text' setting={setting} saveSetting={saveSetting} value={file.discordWebhook} />
                         <FormControl sx={{
                             width: '400px',
                             mt: '20px',
