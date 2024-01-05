@@ -287,7 +287,7 @@ app.post('/trade', async (req, res) => {
         }
     })
     if (data.data && data.data.code == 0) {
-        io.emit("NewSignal", [req.body, data.data]);
+        io.emit("NewSignal", [req.body, data.data.data, pair]);
         const payload = {
             content: "messageContent",
         };
