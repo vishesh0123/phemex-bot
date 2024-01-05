@@ -6,6 +6,10 @@ import { Server as SocketIOServer } from 'socket.io';
 import WebSocket from 'ws';
 import crypto from 'crypto';
 import path from 'path';
+import cryptoRandomString from 'crypto-random-string'
+import axios from 'axios';
+import CryptoJS from 'crypto-js';
+
 
 
 
@@ -192,9 +196,118 @@ io.on('connection', (socket) => {
     });
 });
 
+const getCurrentPrice = async (symbol) => {
+    let apiEndPoint = PUBLIC_API_URL + `/md/v2/ticker/24hr?symbol=${symbol}`;
 
-app.post('/trade', (req, res) => {
-    console.log(req.body === 'LONG');
+    const data = await axios.get(apiEndPoint);
+    return data.data.result.markPriceRp;
+
+}
+
+app.post('/trade', async (req, res) => {
+    console.log("ho");
+    let {
+        apiKey,
+        apiSecret,
+        orderType,
+        pair,
+        takeProfit,
+        stopLoss,
+        limitPrice,
+        limitDistance,
+        maxUSDTperTrade,
+        discordWebhook
+    } = readApiCredentials();
+    takeProfit = parseFloat(takeProfit);
+    stopLoss = parseFloat(stopLoss)
+    limitPrice = parseFloat(limitPrice)
+    limitDistance = parseFloat(limitDistance)
+    maxUSDTperTrade = parseFloat(maxUSDTperTrade)
+    let apiEndPoint = PUBLIC_API_URL + "/g-orders/create";
+    const clOrdID = cryptoRandomString({ length: 40 })
+    const symbol = pair;
+    const reduceOnly = false;
+    const closeOnTrigger = false;
+    const currentPrice = parseFloat(await getCurrentPrice(pair));
+    const orderQtyRq = maxUSDTperTrade / currentPrice;
+    const ordType = orderType === 1 ? 'Market' : 'Limit'
+    let priceRp = req.body === 'LONG' ?
+        currentPrice - (currentPrice * limitPrice / 100) :
+        currentPrice + (currentPrice * limitPrice / 100);
+    priceRp = orderType !== 1 ? priceRp : null;
+    const side = req.body === 'LONG' ? 'Buy' : 'Sell';
+    const posSide = req.body === 'LONG' ? 'Long' : 'Short';
+    const timeInForce = orderType === 1 ? 'ImmediateOrCancel' : 'GoodTillCancel';
+    let takeProfitRp = req.body === 'LONG' ?
+        (orderType === 1 ? (currentPrice + (currentPrice * takeProfit / 100)) : (priceRp + (priceRp * takeProfit / 100))) :
+        (orderType === 1 ? (currentPrice - (currentPrice * takeProfit / 100)) : (priceRp - (priceRp * takeProfit / 100)));
+    let stopLossRp = req.body === 'LONG' ?
+        (orderType === 1 ? (currentPrice - (currentPrice * stopLoss / 100)) : (priceRp - (priceRp * stopLoss / 100))) :
+        (orderType === 1 ? (currentPrice + (currentPrice * stopLoss / 100)) : (priceRp + (priceRp * stopLoss / 100)));
+    priceRp = orderType === 3 ?
+        (
+            req.body === 'LONG' ?
+                priceRp - (priceRp * limitDistance / 100) :
+                priceRp + (priceRp * limitDistance / 100)
+        ) :
+        priceRp;
+    takeProfitRp = orderType === 3 ?
+        (
+            req.body === 'LONG' ?
+                (priceRp + (priceRp * takeProfit / 100)) :
+                (priceRp - (priceRp * takeProfit / 100))
+        ) :
+        takeProfitRp;
+    stopLossRp = orderType === 3 ?
+        (
+            req.body === 'LONG' ?
+                (priceRp - (priceRp * stopLoss / 100)) :
+                (priceRp + (priceRp * stopLoss / 100))
+        ) :
+        stopLossRp;
+    const currentUnixEpochTime = Math.floor(Date.now() / 1000) + 60;
+    let signature;
+    apiEndPoint = apiEndPoint + `?clOrdID=${clOrdID}&symbol=${symbol}&reduceOnly=${reduceOnly}&closeOnTrigger=${closeOnTrigger}&orderQtyRq=${orderQtyRq}&ordType=${ordType}&side=${side}&posSide=${posSide}&timeInForce=${timeInForce}&takeProfitRp=${takeProfitRp}&stopLossRp=${stopLossRp}`;
+    if (orderType === 1) {
+        const sigData = '/g-orders/create' + `clOrdID=${clOrdID}&symbol=${symbol}&reduceOnly=${reduceOnly}&closeOnTrigger=${closeOnTrigger}&orderQtyRq=${orderQtyRq}&ordType=${ordType}&side=${side}&posSide=${posSide}&timeInForce=${timeInForce}&takeProfitRp=${takeProfitRp}&stopLossRp=${stopLossRp}` + currentUnixEpochTime;
+        console.log(sigData);
+        signature = CryptoJS.HmacSHA256(sigData, apiSecret).toString();
+
+    } else {
+        apiEndPoint = apiEndPoint + `&priceRp=${priceRp}`
+        const sigData = '/g-orders/create' + `clOrdID=${clOrdID}&symbol=${symbol}&reduceOnly=${reduceOnly}&closeOnTrigger=${closeOnTrigger}&orderQtyRq=${orderQtyRq}&ordType=${ordType}&side=${side}&posSide=${posSide}&timeInForce=${timeInForce}&takeProfitRp=${takeProfitRp}&stopLossRp=${stopLossRp}&priceRp=${priceRp}` + currentUnixEpochTime;
+        signature = CryptoJS.HmacSHA256(sigData, apiSecret).toString();
+
+    }
+    const data = await axios.put(apiEndPoint, null, {
+        headers: {
+            'x-phemex-access-token': apiKey,
+            'x-phemex-request-expiry': currentUnixEpochTime,
+            'x-phemex-request-signature': signature
+        }
+    })
+    if (data.data && data.data.code == 0) {
+        io.emit("NewSignal", [req.body, data.data]);
+        const payload = {
+            content: "messageContent",
+        };
+        const response = await axios.post(discordWebhook, payload);
+        console.log(response);
+
+    }
+    console.log(apiEndPoint);
+    console.log(clOrdID);
+    console.log(symbol);
+    console.log(reduceOnly, closeOnTrigger);
+    console.log(currentPrice);
+    console.log(orderQtyRq);
+    console.log(ordType);
+    console.log(priceRp);
+    console.log(side, posSide, timeInForce);
+    console.log(takeProfitRp);
+    console.log(stopLossRp);
+    console.log(currentUnixEpochTime);
+    console.log(data);
 
 })
 

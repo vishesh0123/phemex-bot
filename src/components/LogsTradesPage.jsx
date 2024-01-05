@@ -1,9 +1,16 @@
 import { Box } from '@mui/material'
-import React from 'react'
-import RecentTrades from './RecentTrades'
-import Logs from './Logs'
+import React, { useEffect } from 'react'
+import { io } from 'socket.io-client'
 
 function LogsTradesPage() {
+    useEffect(() => {
+        const socket = io('http://127.0.0.1:8080')
+
+        socket.on('NewSignal', (args) => {
+            console.log(args);
+        })
+
+    })
     return (
         <Box display='flex'
             flexDirection='column'
@@ -13,8 +20,6 @@ function LogsTradesPage() {
             height='690px'
             position='fixed'
         >
-            <RecentTrades />
-            <Logs />
         </Box>
     )
 }
