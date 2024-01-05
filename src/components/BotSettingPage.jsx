@@ -5,6 +5,8 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import axios from 'axios';
 import PairsMenu from './PairsMenu'
 import file from '../../settings.json';
+import BotConfig from '../../bot.config';
+import CryptoJS from 'crypto-js';
 
 function BotSettingPage() {
     const [setting, saveSetting] = useState({});
@@ -14,6 +16,43 @@ function BotSettingPage() {
     const [posMode, setPosMode] = useState(Number(file.posMode))
     const [pairs, setPairs] = useState({})
     const [selectedPair, setSelectedPair] = useState('')
+
+    const setLeverage = async (merged) => {
+        let apiEndPoint = BotConfig.proxy.public.rest + "/g-positions/leverage"
+        const symbol = merged.pair
+        let leverageRr = Number(merged.leverage)
+        if (leverageMode === 1) {
+            leverageRr = (leverageRr * -1)
+        }
+        let signature;
+        const currentUnixEpochTime = Math.floor(Date.now() / 1000) + 60;
+        if (posMode === 1) { //one way
+            apiEndPoint = apiEndPoint + `?symbol=${symbol}&leverageRr=${leverageRr}`
+            const sigData = '/g-positions/leverage' + `symbol=${symbol}&leverageRr=${leverageRr}` + currentUnixEpochTime
+            console.log(sigData);
+            signature = CryptoJS.HmacSHA256(sigData, merged.apiSecret).toString();
+
+
+        } else {
+            apiEndPoint = apiEndPoint + `?symbol=${symbol}&longLeverageRr=${leverageRr}&shortLeverageRr=${leverageRr}`
+            const sigData = '/g-positions/leverage' + `symbol=${symbol}&longLeverageRr=${leverageRr}&shortLeverageRr=${leverageRr}` + currentUnixEpochTime
+            console.log(sigData);
+            signature = CryptoJS.HmacSHA256(sigData, merged.apiSecret).toString();
+        }
+        
+        console.log(apiEndPoint);
+        console.log(merged);
+        console.log(signature);
+        const data = await axios.put(apiEndPoint, null, {
+            headers: {
+                'x-phemex-access-token': file.apiKey,
+                'x-phemex-request-expiry': currentUnixEpochTime,
+                'x-phemex-request-signature': signature
+            }
+        })
+        console.log(data);
+
+    }
 
     const saveSettingInconfig = async () => {
         const merged = {
@@ -26,6 +65,8 @@ function BotSettingPage() {
         }
         try {
             const response = await axios.post('http://127.0.0.1:8080/save-config', merged);
+            await setLeverage(merged)
+
             if (response.data.success) {
                 console.log('Configuration saved successfully.');
             } else {
@@ -244,9 +285,9 @@ function BotSettingPage() {
                                 border: '1px solid white',
                                 fontSize: '0.8rem',
                                 fontWeight: 'bold',
-                                width:'200px',
-                                height:'50px'
-                            
+                                width: '200px',
+                                height: '50px'
+
                             }}
                             onClick={async () => { await saveSettingInconfig() }}
                         >

@@ -5,6 +5,7 @@ import PairsMenu from './PairsMenu'
 import SwitchMode from './SwitchMode'
 import TradingMode from './TradingMode'
 import PlaceOrderPerps from './PlaceOrderPerps'
+import BotSettingPage from './BotSettingPage'
 
 function HomePage({ ml, mt }) {
     const [apiKey, setApiKey] = useState('')
@@ -30,6 +31,7 @@ function HomePage({ ml, mt }) {
             <Box width='550px' display='flex' justifyContent='space-between' alignItems='center'>
                 {/* <KeyInput setApiKey={setApiKey} /> */}
                 <SwitchMode setTestMode={setTestMode} />
+                <BotSettingPage />
             </Box>
 
             <Box width='550px' display='flex' justifyContent='space-between' alignItems='center'>

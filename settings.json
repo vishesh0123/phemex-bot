@@ -1,6 +1,10 @@
 {
   "discordWebhook": "https://discord.com/api/webhooks/1192153719672942652/6wwDmO6I2IIiyXfUHVa3J-6w5IRlCjOmFuNHKgUIKcHmWXvClq7R22qjEYV0ZegPvBW2",
-  "orderType": null,
-  "marginMode": null,
-  "posMode": null
+  "orderType": 0,
+  "marginMode": 1,
+  "posMode": 2,
+  "apiKey": "e9149b6c-2e48-48c9-8799-36a018269104",
+  "apiSecret": "_O0ETjZOTVBSNGZ3ena2ZTW078bGrd8L36zEn8BHhiMxMzFhMjNiMy02ODFhLTQwOTgtYTNjMi1hNjIyZjc1OTAxODg",
+  "leverage": "2",
+  "pair": "BTCUSDT"
 }
