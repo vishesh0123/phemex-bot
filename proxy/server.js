@@ -3,15 +3,11 @@ import { createProxyMiddleware } from 'http-proxy-middleware';
 import fs from 'fs';
 import { createServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
-import WebSocket from 'ws';
 import crypto from 'crypto';
 import path from 'path';
 import cryptoRandomString from 'crypto-random-string'
 import axios from 'axios';
 import CryptoJS from 'crypto-js';
-
-
-
 
 const app = express();
 app.use(express.text());
@@ -117,73 +113,8 @@ function generateSignature(apiKey, apiSecret) {
     return { signature, expiry };
 }
 
-// function subscribeToAOP(ws) {
-//     const subscribeMessage = JSON.stringify({
-//         "id": 8956,
-//         "method": "aop_p.subscribe",
-//         "params": []
-//     });
-
-//     ws.send(subscribeMessage);
-//     console.log('Subscription request sent');
-// }
-
 io.on('connection', (socket) => {
     console.log('a user connected:', socket.id);
-    const phemex = new WebSocket("wss://ws.phemex.com");
-
-    phemex.on('open', () => {
-        console.log("Connected To Phemex WS");
-        const { apiKey, apiSecret } = readApiCredentials();
-        if (apiKey !== undefined && apiKey !== undefined) {
-            const { signature, expiry } = generateSignature(apiKey, apiSecret);
-            const authMessage = JSON.stringify({
-                method: "user.auth",
-                params: ["API", apiKey, signature, expiry],
-                id: 1234
-            });
-            phemex.send(authMessage);
-
-        }
-
-
-        setInterval(() => {
-            if (phemex.readyState === WebSocket.OPEN) {
-                phemex.ping();
-                // console.log('Ping sent to Phemex');
-            }
-        }, 5000);
-    })
-
-    phemex.on('pong', () => {
-        // console.log('Pong received from Phemex');
-    });
-
-    phemex.on('close', () => {
-        console.log("Disconnected Phemex");
-    })
-
-    phemex.on('message', (msg) => {
-        const response = JSON.parse(msg);
-        if (response.id === 1234) {
-            if (response.result && response.result.status === 'success') {
-                // subscribeToAOP(phemex);
-                console.log('Successfully authenticated with Phemex');
-            } else {
-                console.error('Failed to authenticate:', response.error);
-            }
-        }
-        if (response.id === 8956) {
-            if (response.result && response.result.status === 'success') {
-                console.log('Successfully Subscribed To aop');
-            } else {
-                console.error('Failed to authenticate:', response.error);
-            }
-        }
-
-    })
-
-
 
     socket.on('message', (data) => {
         console.log('Message received:', data);
@@ -204,8 +135,73 @@ const getCurrentPrice = async (symbol) => {
 
 }
 
+const getLastTradeDirection = async () => {
+    const response = await axios.get('http://localhost:8080/trades-today');
+
+    const sidee = response.data[0].side;
+    const posSidee = response.data[0].posSide;
+    return { sidee, posSidee };
+}
+
+const cancleAllOrders = async () => {
+    let {
+        apiKey,
+        apiSecret,
+        pair
+    } = readApiCredentials();
+    let apiEndPoint1 = PUBLIC_API_URL + `/g-orders/all?symbol=${pair}&untriggered=true`
+    let apiEndPoint2 = PUBLIC_API_URL + `/g-orders/all?symbol=${pair}&untriggered=false`
+    const currentUnixEpochTime = Math.floor(Date.now() / 1000) + 60;
+    const sigdata1 = `/g-orders/allsymbol=${pair}&untriggered=true` + currentUnixEpochTime;
+    const sigdata2 = `/g-orders/allsymbol=${pair}&untriggered=false` + currentUnixEpochTime;
+    const signature1 = CryptoJS.HmacSHA256(sigdata1, apiSecret).toString();
+    const signature2 = CryptoJS.HmacSHA256(sigdata2, apiSecret).toString();
+    const data1 = await axios.delete(apiEndPoint1, {
+        headers: {
+            'x-phemex-access-token': apiKey,
+            'x-phemex-request-expiry': currentUnixEpochTime,
+            'x-phemex-request-signature': signature1
+        }
+    });
+    const data2 = await axios.delete(apiEndPoint1, {
+        headers: {
+            'x-phemex-access-token': apiKey,
+            'x-phemex-request-expiry': currentUnixEpochTime,
+            'x-phemex-request-signature': signature2
+        }
+    });
+
+
+}
+
+const closeLastPosition = async () => {
+
+}
+
 app.post('/trade', async (req, res) => {
-    console.log("ho");
+    const { sidee, posSidee } = await getLastTradeDirection();
+    if (sidee && sidee === 'Buy') {
+        if (req.body === 'LONG') {
+            if (posSidee === 'Long') {
+                res.status(400).json({ error: 'Bad Request', message: 'Your request is invalid.' });
+            } else {
+                await closeLastPosition();
+            }
+
+        } else {
+            if (posSidee === 'Short') {
+                res.status(400).json({ error: 'Bad Request', message: 'Your request is invalid.' });
+            } else {
+                await closeLastPosition();
+            }
+        }
+
+
+
+    } else {
+        await cancleAllOrders();
+    }
+
     let {
         apiKey,
         apiSecret,
@@ -235,7 +231,7 @@ app.post('/trade', async (req, res) => {
         currentPrice - (currentPrice * limitPrice / 100) :
         currentPrice + (currentPrice * limitPrice / 100);
     priceRp = orderType !== 1 ? priceRp : null;
-    const side = req.body === 'LONG' ? 'Buy' : 'Sell';
+    let side = req.body === 'LONG' ? 'Buy' : 'Sell';
     const posSide = req.body === 'LONG' ? 'Long' : 'Short';
     const timeInForce = orderType === 1 ? 'ImmediateOrCancel' : 'GoodTillCancel';
     let takeProfitRp = req.body === 'LONG' ?
@@ -308,6 +304,93 @@ app.post('/trade', async (req, res) => {
     console.log(stopLossRp);
     console.log(currentUnixEpochTime);
     console.log(data);
+
+})
+
+app.get('/trades-today', async (req, res) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const unixTimestamp = Math.floor(today.getTime());
+    let {
+        apiKey,
+        apiSecret,
+        pair
+    } = readApiCredentials();
+    const currentUnixEpochTime = Math.floor(Date.now() / 1000) + 60;
+    let api = PUBLIC_API_URL + `/api-data/g-futures/trades?symbol=${pair}&start=${unixTimestamp}`
+
+    const sigdata = `/api-data/g-futures/tradessymbol=${pair}&start=${unixTimestamp}` + currentUnixEpochTime;
+    const signature = CryptoJS.HmacSHA256(sigdata, apiSecret).toString();
+    const data = await axios.get(api, {
+        headers: {
+            'x-phemex-access-token': apiKey,
+            'x-phemex-request-expiry': currentUnixEpochTime,
+            'x-phemex-request-signature': signature
+        }
+    });
+    res.json(data.data.data.rows);
+
+})
+
+app.get('/orders-today', async (req, res) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const unixTimestamp = Math.floor(today.getTime());
+    let {
+        apiKey,
+        apiSecret,
+        pair
+    } = readApiCredentials();
+    let api = PUBLIC_API_URL + `/api-data/g-futures/orders?symbol=${pair}&start=${unixTimestamp}`
+    const currentUnixEpochTime = Math.floor(Date.now() / 1000) + 60;
+    const sigdata = `/api-data/g-futures/orderssymbol=${pair}&start=${unixTimestamp}` + currentUnixEpochTime;
+    const signature = CryptoJS.HmacSHA256(sigdata, apiSecret).toString();
+    const data = await axios.get(api, {
+        headers: {
+            'x-phemex-access-token': apiKey,
+            'x-phemex-request-expiry': currentUnixEpochTime,
+            'x-phemex-request-signature': signature
+        }
+    });
+    res.json(data.data);
+
+})
+
+app.get('/pnl-today', async (req, res) => {
+    const { sidee, posSidee } = await getLastTradeDirection();
+    console.log(sidee, sidee);
+    const response = await axios.get('http://localhost:8080/trades-today');
+    let pnl = 0;
+    let amt = 0;
+
+    response.data.forEach((trade) => {
+        if (trade.side === 'Sell') {
+            console.log("sell order");
+            pnl = pnl + parseFloat(trade.closedPnlRv);
+
+        }
+        amt = amt + parseFloat(trade.execFeeRv);
+    })
+    console.log(pnl);
+
+    if (sidee === 'Buy') {
+        const recentTrade = response.data[0];
+        const price = parseFloat(recentTrade.execPriceRp)
+        const currentPrice = parseFloat(await getCurrentPrice(recentTrade.symbol))
+        const qty = parseFloat(recentTrade.execValueRv);
+        const percentChange = ((currentPrice - price) * 100) / price
+        if (posSidee === 'Long') {
+            pnl = pnl + (qty * percentChange / 100)
+
+        } else {
+            pnl = pnl - (qty * percentChange / 100)
+        }
+    }
+
+    res.json({ "pnl": pnl - amt });
+
+
+
 
 })
 

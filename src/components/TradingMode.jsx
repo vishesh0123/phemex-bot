@@ -4,7 +4,7 @@ import React, { useState } from 'react'
 function TradingMode({ tradingType, setTradingType }) {
     return (
         <FormControl sx={{
-            width: '200px',
+            width: '150px',
             color: 'white', // Default color
             '& .MuiInputLabel-root': { // Label styles
                 color: 'white', // Label color
@@ -39,10 +39,9 @@ function TradingMode({ tradingType, setTradingType }) {
                         color: 'white', // Dropdown icon color
                     },
                 }}
-                value={tradingType}
+                value={4}
                 onChange={(event) => { setTradingType(Number(event.target.value)) }}
             >
-                {/* <MenuItem value={1} >Spot Market</MenuItem> */}
                 <MenuItem value={4}>USD$-M Perpetual (Hedged Contracts)</MenuItem>
 
             </Select>

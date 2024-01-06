@@ -11,7 +11,7 @@ function PairsMenu({ testMode, tradingType, pairs, setPairs, selectedPair, setSe
     return (
         <>
             <FormControl sx={{
-                width: '200px',
+                width: '150px',
                 color: 'white', // Default color
                 '& .MuiInputLabel-root': { // Label styles
                     color: 'white', // Label color

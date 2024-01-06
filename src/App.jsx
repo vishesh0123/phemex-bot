@@ -3,6 +3,7 @@ import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { blue } from '@mui/material/colors';
 import { Box } from '@mui/material';
 import LogsTradesPage from './components/LogsTradesPage';
+import LogsOrdersPage from './components/LogsOrdersPage'
 
 
 const theme = createTheme({
@@ -26,7 +27,10 @@ function App() {
       <ThemeProvider theme={theme}>
         <Box display='flex' width='100%' flexDirection='row'>
           <HomePage ml='15px' mt='15px' />
-          <LogsTradesPage/>
+          <Box>
+            <LogsTradesPage />
+            <LogsOrdersPage />
+          </Box>
         </Box>
       </ThemeProvider>
     </>

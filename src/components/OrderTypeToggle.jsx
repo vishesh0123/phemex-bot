@@ -12,7 +12,7 @@ function OrderTypeToggle({ orderSubType, setOrderSubType }) {
             fontSize:'1.1rem'
 
         },
-        width: '150px',
+        width: '140px',
         height: '30px'
     }
     return (

@@ -90,13 +90,6 @@ function PlaceOrderPerps({ pairs, selectedPair, testMode }) {
             }
         }
 
-        console.log(apiEndPoint);
-        console.log(signature);
-        console.log(timeInForce);
-        console.log(orderSubType);
-        console.log(stopPxRp);
-        console.log(orderInfo);
-
         const data = await axios.put(apiEndPoint, null, {
             headers: {
                 'x-phemex-access-token': apiKey,
@@ -115,9 +108,9 @@ function PlaceOrderPerps({ pairs, selectedPair, testMode }) {
     return (
 
         <Box
-            width='550px'
+            width='450px'
             border='1px solid white'
-            height='480px'
+            height='300px'
             display='flex'
             flexDirection='column'
 
