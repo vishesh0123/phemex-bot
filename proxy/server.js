@@ -3,7 +3,6 @@ import { createProxyMiddleware } from 'http-proxy-middleware';
 import fs from 'fs';
 import { createServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
-import crypto from 'crypto';
 import path from 'path';
 import cryptoRandomString from 'crypto-random-string'
 import axios from 'axios';
@@ -102,15 +101,48 @@ app.post('/save-config', express.json(), (req, res) => {
     }
 });
 
+let cacheData = {
+    date: new Date('2024-01-01').toDateString(),
+    logsCounter: 0,
+    tradinghalt: false
+}
+
+const runEveryMinute = async () => {
+    const response = await axios.get('http://localhost:8080/trades-today');
+    const today = new Date().toDateString();
+    let { discordWebhook, dailyProfitThreshold, dailyLossThreshold } = readApiCredentials();
+    if (today !== cacheData.date) {
+        cacheData.date = today;
+        cacheData.logsCounter = response.data.length;
+    }
+    if (response.data.length > cacheData.logsCounter) {
+        const diff = response.data.length - cacheData.logsCounter;
+        io.emit("NewSignal", "");
+        for (let i = cacheData.logsCounter; i < response.data.length; i++) {
+            const trade = response.data[i];
+            const payload = {
+                content: `OrderId=${trade.orderID}\nSymbol=${trade.symbol}\nExecPrice=${trade.execPriceRp}\nClosedPnl=${trade.closedPnlRv}\nExecuted Qty=${trade.execQtyRq}\nOrderType=${trade.ordType}\nPosSide=${trade.posSide}`,
+            };
+            const response1 = await axios.post(discordWebhook, payload);
+            console.log(response1.data);
+
+        }
+        cacheData.logsCounter = response.data.length;
+
+    }
+    const pnl = await axios.get('http://localhost:8080/pnl-today');
+    if ((pnl >= Number(dailyProfitThreshold)) || (pnl <= (Number(dailyLossThreshold) * -1))) {
+        cacheData.tradinghalt = true;
+        closeLastPosition()
+    }
+
+
+}
+setInterval(runEveryMinute, 10000);
+
 function readApiCredentials() {
     const fileContents = fs.readFileSync(SETTING, 'utf8');
     return JSON.parse(fileContents);
-}
-
-function generateSignature(apiKey, apiSecret) {
-    const expiry = Math.floor(Date.now() / 1000) + 2 * 60; // 2 minutes into the future
-    const signature = crypto.createHmac('sha256', apiSecret).update(`${apiKey}${expiry}`).digest('hex');
-    return { signature, expiry };
 }
 
 io.on('connection', (socket) => {
@@ -140,7 +172,9 @@ const getLastTradeDirection = async () => {
 
     const sidee = response.data[0].side;
     const posSidee = response.data[0].posSide;
-    return { sidee, posSidee };
+    const qty = response.data[0].execQtyRq;
+    const symbol = response.data[0].symbol;
+    return { sidee, posSidee, qty, symbol };
 }
 
 const cancleAllOrders = async () => {
@@ -163,7 +197,7 @@ const cancleAllOrders = async () => {
             'x-phemex-request-signature': signature1
         }
     });
-    const data2 = await axios.delete(apiEndPoint1, {
+    const data2 = await axios.delete(apiEndPoint2, {
         headers: {
             'x-phemex-access-token': apiKey,
             'x-phemex-request-expiry': currentUnixEpochTime,
@@ -175,106 +209,25 @@ const cancleAllOrders = async () => {
 }
 
 const closeLastPosition = async () => {
-
-}
-
-app.post('/trade', async (req, res) => {
-    const { sidee, posSidee } = await getLastTradeDirection();
-    if (sidee && sidee === 'Buy') {
-        if (req.body === 'LONG') {
-            if (posSidee === 'Long') {
-                res.status(400).json({ error: 'Bad Request', message: 'Your request is invalid.' });
-            } else {
-                await closeLastPosition();
-            }
-
-        } else {
-            if (posSidee === 'Short') {
-                res.status(400).json({ error: 'Bad Request', message: 'Your request is invalid.' });
-            } else {
-                await closeLastPosition();
-            }
-        }
-
-
-
-    } else {
-        await cancleAllOrders();
-    }
-
+    const { sidee, posSidee, qty, symbol } = await getLastTradeDirection();
     let {
         apiKey,
-        apiSecret,
-        orderType,
-        pair,
-        takeProfit,
-        stopLoss,
-        limitPrice,
-        limitDistance,
-        maxUSDTperTrade,
-        discordWebhook
+        apiSecret
     } = readApiCredentials();
-    takeProfit = parseFloat(takeProfit);
-    stopLoss = parseFloat(stopLoss)
-    limitPrice = parseFloat(limitPrice)
-    limitDistance = parseFloat(limitDistance)
-    maxUSDTperTrade = parseFloat(maxUSDTperTrade)
     let apiEndPoint = PUBLIC_API_URL + "/g-orders/create";
     const clOrdID = cryptoRandomString({ length: 40 })
-    const symbol = pair;
     const reduceOnly = false;
     const closeOnTrigger = false;
-    const currentPrice = parseFloat(await getCurrentPrice(pair));
-    const orderQtyRq = maxUSDTperTrade / currentPrice;
-    const ordType = orderType === 1 ? 'Market' : 'Limit'
-    let priceRp = req.body === 'LONG' ?
-        currentPrice - (currentPrice * limitPrice / 100) :
-        currentPrice + (currentPrice * limitPrice / 100);
-    priceRp = orderType !== 1 ? priceRp : null;
-    let side = req.body === 'LONG' ? 'Buy' : 'Sell';
-    const posSide = req.body === 'LONG' ? 'Long' : 'Short';
-    const timeInForce = orderType === 1 ? 'ImmediateOrCancel' : 'GoodTillCancel';
-    let takeProfitRp = req.body === 'LONG' ?
-        (orderType === 1 ? (currentPrice + (currentPrice * takeProfit / 100)) : (priceRp + (priceRp * takeProfit / 100))) :
-        (orderType === 1 ? (currentPrice - (currentPrice * takeProfit / 100)) : (priceRp - (priceRp * takeProfit / 100)));
-    let stopLossRp = req.body === 'LONG' ?
-        (orderType === 1 ? (currentPrice - (currentPrice * stopLoss / 100)) : (priceRp - (priceRp * stopLoss / 100))) :
-        (orderType === 1 ? (currentPrice + (currentPrice * stopLoss / 100)) : (priceRp + (priceRp * stopLoss / 100)));
-    priceRp = orderType === 3 ?
-        (
-            req.body === 'LONG' ?
-                priceRp - (priceRp * limitDistance / 100) :
-                priceRp + (priceRp * limitDistance / 100)
-        ) :
-        priceRp;
-    takeProfitRp = orderType === 3 ?
-        (
-            req.body === 'LONG' ?
-                (priceRp + (priceRp * takeProfit / 100)) :
-                (priceRp - (priceRp * takeProfit / 100))
-        ) :
-        takeProfitRp;
-    stopLossRp = orderType === 3 ?
-        (
-            req.body === 'LONG' ?
-                (priceRp - (priceRp * stopLoss / 100)) :
-                (priceRp + (priceRp * stopLoss / 100))
-        ) :
-        stopLossRp;
+    const orderQtyRq = qty;
+    const ordType = 'Market';
+    const side = posSidee === 'Long' ? 'Sell' : 'Buy';
+    const posSide = posSidee;
+    const timeInForce = 'ImmediateOrCancel';
     const currentUnixEpochTime = Math.floor(Date.now() / 1000) + 60;
-    let signature;
-    apiEndPoint = apiEndPoint + `?clOrdID=${clOrdID}&symbol=${symbol}&reduceOnly=${reduceOnly}&closeOnTrigger=${closeOnTrigger}&orderQtyRq=${orderQtyRq}&ordType=${ordType}&side=${side}&posSide=${posSide}&timeInForce=${timeInForce}&takeProfitRp=${takeProfitRp}&stopLossRp=${stopLossRp}`;
-    if (orderType === 1) {
-        const sigData = '/g-orders/create' + `clOrdID=${clOrdID}&symbol=${symbol}&reduceOnly=${reduceOnly}&closeOnTrigger=${closeOnTrigger}&orderQtyRq=${orderQtyRq}&ordType=${ordType}&side=${side}&posSide=${posSide}&timeInForce=${timeInForce}&takeProfitRp=${takeProfitRp}&stopLossRp=${stopLossRp}` + currentUnixEpochTime;
-        console.log(sigData);
-        signature = CryptoJS.HmacSHA256(sigData, apiSecret).toString();
+    apiEndPoint = apiEndPoint + `?clOrdID=${clOrdID}&symbol=${symbol}&reduceOnly=${reduceOnly}&closeOnTrigger=${closeOnTrigger}&orderQtyRq=${orderQtyRq}&ordType=${ordType}&side=${side}&posSide=${posSide}&timeInForce=${timeInForce}`;
 
-    } else {
-        apiEndPoint = apiEndPoint + `&priceRp=${priceRp}`
-        const sigData = '/g-orders/create' + `clOrdID=${clOrdID}&symbol=${symbol}&reduceOnly=${reduceOnly}&closeOnTrigger=${closeOnTrigger}&orderQtyRq=${orderQtyRq}&ordType=${ordType}&side=${side}&posSide=${posSide}&timeInForce=${timeInForce}&takeProfitRp=${takeProfitRp}&stopLossRp=${stopLossRp}&priceRp=${priceRp}` + currentUnixEpochTime;
-        signature = CryptoJS.HmacSHA256(sigData, apiSecret).toString();
-
-    }
+    const sigData = '/g-orders/create' + `clOrdID=${clOrdID}&symbol=${symbol}&reduceOnly=${reduceOnly}&closeOnTrigger=${closeOnTrigger}&orderQtyRq=${orderQtyRq}&ordType=${ordType}&side=${side}&posSide=${posSide}&timeInForce=${timeInForce}` + currentUnixEpochTime;
+    const signature = CryptoJS.HmacSHA256(sigData, apiSecret).toString();
     const data = await axios.put(apiEndPoint, null, {
         headers: {
             'x-phemex-access-token': apiKey,
@@ -282,28 +235,167 @@ app.post('/trade', async (req, res) => {
             'x-phemex-request-signature': signature
         }
     })
-    if (data.data && data.data.code == 0) {
-        io.emit("NewSignal", [req.body, data.data.data, pair]);
-        const payload = {
-            content: "messageContent",
-        };
-        const response = await axios.post(discordWebhook, payload);
-        console.log(response);
 
+}
+
+const cancleOrderById = async (id) => {
+
+}
+
+const placeTrailingSl = async (symboll, qty, direction) => {
+    let {
+        apiKey,
+        apiSecret,
+        trailingStopLoss
+
+    } = readApiCredentials();
+    const clOrdID = cryptoRandomString({ length: 40 })
+    const closeOnTrigger = true;
+    const currentPrice = parseFloat(await getCurrentPrice(symboll));
+    const stopPxRp = currentPrice - (currentPrice * parseFloat(trailingStopLoss) / 100);
+    const ordType = 'Stop';
+    const orderQtyRq = qty;
+    let pegOffsetProportionRr = parseFloat(trailingStopLoss) / 100;
+    let pegPriceType = 'TrailingStopByProportionPeg';
+    const posSide = direction;
+    const side = direction === 'Long' ? 'Sell' : 'Buy';
+    const symbol = symboll;
+    pegOffsetProportionRr = posSide === 'Long' ? pegOffsetProportionRr * -1 : pegOffsetProportionRr;
+    const timeInForce = 'ImmediateOrCancel';
+    const triggerType = 'ByLastPrice';
+    let apiEndPoint = PUBLIC_API_URL + "/g-orders/create";
+    apiEndPoint = apiEndPoint + `?clOrdID=${clOrdID}&stopPxRp=${stopPxRp}&closeOnTrigger=${closeOnTrigger}&ordType=${ordType}&pegOffsetProportionRr=${pegOffsetProportionRr}&pegPriceType=${pegPriceType}&posSide=${posSide}&side=${side}&symbol=${symbol}&timeInForce=${timeInForce}&triggerType=${triggerType}`;
+    const currentUnixEpochTime = Math.floor(Date.now() / 1000) + 60;
+    const sigData = "/g-orders/create" + `clOrdID=${clOrdID}&stopPxRp=${stopPxRp}&closeOnTrigger=${closeOnTrigger}&ordType=${ordType}&pegOffsetProportionRr=${pegOffsetProportionRr}&pegPriceType=${pegPriceType}&posSide=${posSide}&side=${side}&symbol=${symbol}&timeInForce=${timeInForce}&triggerType=${triggerType}` + currentUnixEpochTime;
+    const signature = CryptoJS.HmacSHA256(sigData, apiSecret).toString();
+    const data = await axios.put(apiEndPoint, null, {
+        headers: {
+            'x-phemex-access-token': apiKey,
+            'x-phemex-request-expiry': currentUnixEpochTime,
+            'x-phemex-request-signature': signature
+        }
+    })
+    console.log(data.data);
+
+
+}
+
+app.post('/trade', async (req, res) => {
+
+    if (cacheData.tradinghalt === true) {
+        res.status(400).json({ error: 'Bad Request', message: 'Profit/Loss Threshold Reached' });
+
+    } else {
+        const { sidee, posSidee } = await getLastTradeDirection();
+        let executeTrade = false;
+        if ((sidee === 'Buy' && posSidee === 'Long') || (sidee === 'Sell' && posSidee === 'Short')) {
+            if (posSidee.toUpperCase() === req.body) {
+                res.status(400).json({ error: 'Bad Request', message: 'Your request is invalid.' });
+
+            } else {
+                await closeLastPosition();
+                executeTrade = true;
+            }
+
+        } else {
+            await cancleAllOrders();
+            executeTrade = true;
+        }
+
+
+        if (executeTrade === true) {
+            let {
+                apiKey,
+                apiSecret,
+                orderType,
+                pair,
+                takeProfit,
+                stopLoss,
+                limitPrice,
+                limitDistance,
+                maxUSDTperTrade,
+                trailingStopLoss
+
+            } = readApiCredentials();
+            takeProfit = parseFloat(takeProfit);
+            stopLoss = parseFloat(stopLoss)
+            limitPrice = parseFloat(limitPrice)
+            limitDistance = parseFloat(limitDistance)
+            maxUSDTperTrade = parseFloat(maxUSDTperTrade)
+            let apiEndPoint = PUBLIC_API_URL + "/g-orders/create";
+            const clOrdID = cryptoRandomString({ length: 40 })
+            const symbol = pair;
+            const reduceOnly = false;
+            const closeOnTrigger = false;
+            const currentPrice = parseFloat(await getCurrentPrice(pair));
+            const orderQtyRq = maxUSDTperTrade / currentPrice;
+            const ordType = orderType === 1 ? 'Market' : 'Limit'
+            let priceRp = req.body === 'LONG' ?
+                currentPrice - (currentPrice * limitPrice / 100) :
+                currentPrice + (currentPrice * limitPrice / 100);
+            priceRp = orderType !== 1 ? priceRp : null;
+            let side = req.body === 'LONG' ? 'Buy' : 'Sell';
+            const posSide = req.body === 'LONG' ? 'Long' : 'Short';
+            const timeInForce = orderType === 1 ? 'ImmediateOrCancel' : 'GoodTillCancel';
+            let takeProfitRp = req.body === 'LONG' ?
+                (orderType === 1 ? (currentPrice + (currentPrice * takeProfit / 100)) : (priceRp + (priceRp * takeProfit / 100))) :
+                (orderType === 1 ? (currentPrice - (currentPrice * takeProfit / 100)) : (priceRp - (priceRp * takeProfit / 100)));
+            let stopLossRp = req.body === 'LONG' ?
+                (orderType === 1 ? (currentPrice - (currentPrice * stopLoss / 100)) : (priceRp - (priceRp * stopLoss / 100))) :
+                (orderType === 1 ? (currentPrice + (currentPrice * stopLoss / 100)) : (priceRp + (priceRp * stopLoss / 100)));
+            priceRp = orderType === 3 ?
+                (
+                    req.body === 'LONG' ?
+                        priceRp - (priceRp * limitDistance / 100) :
+                        priceRp + (priceRp * limitDistance / 100)
+                ) :
+                priceRp;
+            takeProfitRp = orderType === 3 ?
+                (
+                    req.body === 'LONG' ?
+                        (priceRp + (priceRp * takeProfit / 100)) :
+                        (priceRp - (priceRp * takeProfit / 100))
+                ) :
+                takeProfitRp;
+            stopLossRp = orderType === 3 ?
+                (
+                    req.body === 'LONG' ?
+                        (priceRp - (priceRp * stopLoss / 100)) :
+                        (priceRp + (priceRp * stopLoss / 100))
+                ) :
+                stopLossRp;
+            const currentUnixEpochTime = Math.floor(Date.now() / 1000) + 60;
+            let signature;
+            apiEndPoint = apiEndPoint + `?clOrdID=${clOrdID}&symbol=${symbol}&reduceOnly=${reduceOnly}&closeOnTrigger=${closeOnTrigger}&orderQtyRq=${orderQtyRq}&ordType=${ordType}&side=${side}&posSide=${posSide}&timeInForce=${timeInForce}&takeProfitRp=${takeProfitRp}&stopLossRp=${stopLossRp}`;
+            if (orderType === 1) {
+                const sigData = '/g-orders/create' + `clOrdID=${clOrdID}&symbol=${symbol}&reduceOnly=${reduceOnly}&closeOnTrigger=${closeOnTrigger}&orderQtyRq=${orderQtyRq}&ordType=${ordType}&side=${side}&posSide=${posSide}&timeInForce=${timeInForce}&takeProfitRp=${takeProfitRp}&stopLossRp=${stopLossRp}` + currentUnixEpochTime;
+                signature = CryptoJS.HmacSHA256(sigData, apiSecret).toString();
+
+            } else {
+                apiEndPoint = apiEndPoint + `&priceRp=${priceRp}`
+                const sigData = '/g-orders/create' + `clOrdID=${clOrdID}&symbol=${symbol}&reduceOnly=${reduceOnly}&closeOnTrigger=${closeOnTrigger}&orderQtyRq=${orderQtyRq}&ordType=${ordType}&side=${side}&posSide=${posSide}&timeInForce=${timeInForce}&takeProfitRp=${takeProfitRp}&stopLossRp=${stopLossRp}&priceRp=${priceRp}` + currentUnixEpochTime;
+                signature = CryptoJS.HmacSHA256(sigData, apiSecret).toString();
+
+            }
+            const data = await axios.put(apiEndPoint, null, {
+                headers: {
+                    'x-phemex-access-token': apiKey,
+                    'x-phemex-request-expiry': currentUnixEpochTime,
+                    'x-phemex-request-signature': signature
+                }
+            })
+            await placeTrailingSl(pair, orderQtyRq, posSide);
+            console.log(data.data);
+            if (data.data && data.data.code == 0) {
+                io.emit("NewSignal", [req.body, data.data.data, pair]);
+                await runEveryMinute();
+
+            }
+        }
     }
-    console.log(apiEndPoint);
-    console.log(clOrdID);
-    console.log(symbol);
-    console.log(reduceOnly, closeOnTrigger);
-    console.log(currentPrice);
-    console.log(orderQtyRq);
-    console.log(ordType);
-    console.log(priceRp);
-    console.log(side, posSide, timeInForce);
-    console.log(takeProfitRp);
-    console.log(stopLossRp);
-    console.log(currentUnixEpochTime);
-    console.log(data);
+
+
+
 
 })
 
@@ -317,9 +409,9 @@ app.get('/trades-today', async (req, res) => {
         pair
     } = readApiCredentials();
     const currentUnixEpochTime = Math.floor(Date.now() / 1000) + 60;
-    let api = PUBLIC_API_URL + `/api-data/g-futures/trades?symbol=${pair}&start=${unixTimestamp}`
+    let api = PUBLIC_API_URL + `/api-data/g-futures/trades?symbol=${pair}&start=${unixTimestamp}&limit=200`
 
-    const sigdata = `/api-data/g-futures/tradessymbol=${pair}&start=${unixTimestamp}` + currentUnixEpochTime;
+    const sigdata = `/api-data/g-futures/tradessymbol=${pair}&start=${unixTimestamp}&limit=200` + currentUnixEpochTime;
     const signature = CryptoJS.HmacSHA256(sigdata, apiSecret).toString();
     const data = await axios.get(api, {
         headers: {
@@ -341,9 +433,9 @@ app.get('/orders-today', async (req, res) => {
         apiSecret,
         pair
     } = readApiCredentials();
-    let api = PUBLIC_API_URL + `/api-data/g-futures/orders?symbol=${pair}&start=${unixTimestamp}`
+    let api = PUBLIC_API_URL + `/api-data/g-futures/orders?symbol=${pair}&start=${unixTimestamp}&limit=200`
     const currentUnixEpochTime = Math.floor(Date.now() / 1000) + 60;
-    const sigdata = `/api-data/g-futures/orderssymbol=${pair}&start=${unixTimestamp}` + currentUnixEpochTime;
+    const sigdata = `/api-data/g-futures/orderssymbol=${pair}&start=${unixTimestamp}&limit=200` + currentUnixEpochTime;
     const signature = CryptoJS.HmacSHA256(sigdata, apiSecret).toString();
     const data = await axios.get(api, {
         headers: {
@@ -358,20 +450,17 @@ app.get('/orders-today', async (req, res) => {
 
 app.get('/pnl-today', async (req, res) => {
     const { sidee, posSidee } = await getLastTradeDirection();
-    console.log(sidee, sidee);
     const response = await axios.get('http://localhost:8080/trades-today');
     let pnl = 0;
     let amt = 0;
 
     response.data.forEach((trade) => {
         if (trade.side === 'Sell') {
-            console.log("sell order");
             pnl = pnl + parseFloat(trade.closedPnlRv);
 
         }
         amt = amt + parseFloat(trade.execFeeRv);
     })
-    console.log(pnl);
 
     if (sidee === 'Buy') {
         const recentTrade = response.data[0];

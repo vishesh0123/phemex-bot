@@ -23,8 +23,10 @@ function HomePage({ ml, mt }) {
 
     useEffect(() => {
         getPNL();
+        const intervalId = setInterval(getPNL, 10000);
+        return () => clearInterval(intervalId);
 
-    }, [])
+    }, []);
 
     return (
         <>

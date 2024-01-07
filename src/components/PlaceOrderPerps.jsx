@@ -8,6 +8,7 @@ import ConditionalOrderTypes from './ConditionalOrderTypes'
 import cryptoRandomString from 'crypto-random-string'
 import axios from 'axios'
 import CryptoJS from 'crypto-js';
+import file from '../../settings.json';
 
 function PlaceOrderPerps({ pairs, selectedPair, testMode }) {
     const [orderType, setOrderType] = useState('Buy')
@@ -64,8 +65,8 @@ function PlaceOrderPerps({ pairs, selectedPair, testMode }) {
         let timeInForce = (orderSubType === 'Market' || (orderSubType === 'Conditional' && slSubType === 'Market')) ? 'ImmediateOrCancel' : 'GoodTillCancel'
         apiEndPoint = apiEndPoint + `?clOrdID=${clOrdID}&symbol=${symbol}&reduceOnly=${reduceOnly}&closeOnTrigger=${closeOnTrigger}&orderQtyRq=${orderQtyRq}&ordType=${ordType}&side=${side}&posSide=${posSide}&timeInForce=${timeInForce}`
         const currentUnixEpochTime = Math.floor(Date.now() / 1000) + 60;
-        const apiKey = 'e9149b6c-2e48-48c9-8799-36a018269104'
-        const apiSecret = '_O0ETjZOTVBSNGZ3ena2ZTW078bGrd8L36zEn8BHhiMxMzFhMjNiMy02ODFhLTQwOTgtYTNjMi1hNjIyZjc1OTAxODg'
+        const apiKey = file.apiKey;
+        const apiSecret = file.apiSecret;
         const add = testMode ? '/moc' : ''
         let signature;
         if (orderSubType === 'Market') {
