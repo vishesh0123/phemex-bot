@@ -28,3 +28,8 @@ lets say url assigned to you is ```https://0aa6-110-227-5-180.ngrok-free.app``` 
 2. On bottom right you can see daily orders and their status , you can see tp/sl orders placed there 
 3. On top left you can see ui in case you want to trade or place order manually 
 4. On bottom left you can see todays pnl and trading will be halted if threshold reaches 
+
+
+**Instructions For TradingView Signal**
+In tradingview , while setting alerts in mesage just put ```LONG``` or ```SHORT``` and order will be placed according to the settings in bot
+
