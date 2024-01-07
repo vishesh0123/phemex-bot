@@ -16,6 +16,7 @@ function BotSettingPage() {
     const [posMode, setPosMode] = useState(Number(file.posMode))
     const [pairs, setPairs] = useState({})
     const [selectedPair, setSelectedPair] = useState('')
+    const [testnet, setTestnet] = useState(file.testnet);
 
     const setLeverage = async (merged) => {
         let apiEndPoint = BotConfig.proxy.public.rest + "/g-positions/leverage"
@@ -39,7 +40,7 @@ function BotSettingPage() {
             console.log(sigData);
             signature = CryptoJS.HmacSHA256(sigData, merged.apiSecret).toString();
         }
-        
+
         console.log(apiEndPoint);
         console.log(merged);
         console.log(signature);
@@ -62,6 +63,7 @@ function BotSettingPage() {
             marginMode: leverageMode,
             posMode: posMode,
             pair: selectedPair === '' ? file.pair : pairs[selectedPair].symbol,
+            testnet: testnet
         }
         try {
             const response = await axios.post('http://127.0.0.1:8080/save-config', merged);
@@ -270,10 +272,64 @@ function BotSettingPage() {
                                     },
                                 }}
                                 value={posMode}
-                                onChange={(event) => { setPosMode(Number(event.target.value)); saveSetting({ ...setting, posMode: Number(event.target.value) }) }}
+                                onChange={(event) => { setPosMode(Number(event.target.value)); }}
                             >
                                 <MenuItem sx={{ 'fontWeight': 'bold' }} value={1} >ONE WAY MODE</MenuItem>
                                 <MenuItem sx={{ 'fontWeight': 'bold' }} value={2}>HEDGED MODE</MenuItem>
+
+                            </Select>
+                        </FormControl>
+                        <FormControl sx={{
+                            width: '400px',
+                            mt: '20px',
+                            ml: '20px',
+                            color: 'white', // Default color
+                            '& .MuiInputLabel-root': { // Label styles
+                                color: 'white', // Label color
+                            },
+                            '& .MuiOutlinedInput-root': {
+                                '& fieldset': {
+                                    borderColor: 'white', // Default border color
+                                },
+                                '&:hover fieldset': {
+                                    borderColor: 'white', // Hover border color
+                                },
+                                '&.Mui-focused fieldset': {
+                                    borderColor: 'white', // Focused border color
+                                },
+                                '& input': {
+                                    color: 'white', // Input text color
+                                    fontWeight: 'bold'
+                                },
+                            },
+                            '& .MuiSelect-select': {
+                                color: 'white', // Select text color
+                                fontWeight: 'bold'
+                            },
+                            '& .MuiSvgIcon-root': { // Dropdown icon color
+                                color: 'white'
+                            }
+                        }}>
+                            <InputLabel id='ordertype' sx={{ color: 'white !important', fontWeight: 'bold' }}>testnet/mainnet</InputLabel>
+                            <Select
+                                labelId='ordertype'
+                                label='Order Type'
+                                sx={{
+                                    '& .MuiSelect-icon': {
+                                        color: 'white', // Dropdown icon color
+                                    },
+                                }}
+                                value={testnet === false ? 1 : 2}
+                                onChange={(event) => {
+                                    if (event.target.value === 1) {
+                                        setTestnet(false);
+                                    } else {
+                                        setTestnet(true);
+                                    }
+                                }}
+                            >
+                                <MenuItem sx={{ 'fontWeight': 'bold' }} value={1} >MAINNET</MenuItem>
+                                <MenuItem sx={{ 'fontWeight': 'bold' }} value={2}>TESTNET</MenuItem>
 
                             </Select>
                         </FormControl>

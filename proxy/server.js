@@ -23,7 +23,7 @@ const io = new SocketIOServer(httpServer, {
 // Configuration for public and testnet
 const PUBLIC_API_URL = "https://api.phemex.com";
 // const TESTNET_API_URL = "https://testnet-api.phemex.com";
-const TESTNET_API_URL = "https://api.phemex.com/moc";
+const TESTNET_API_URL = "https://testnet-api.phemex.com";
 const PORT = 8080;
 const __dirname = path.dirname(new URL(import.meta.url).pathname);
 const SETTING = path.join(__dirname, '..', 'settings.json');
@@ -160,7 +160,11 @@ io.on('connection', (socket) => {
 });
 
 const getCurrentPrice = async (symbol) => {
-    let apiEndPoint = PUBLIC_API_URL + `/md/v2/ticker/24hr?symbol=${symbol}`;
+    let {
+        testnet
+    } = readApiCredentials();
+    let URL = testnet === false ? PUBLIC_API_URL : TESTNET_API_URL;
+    let apiEndPoint = URL + `/md/v2/ticker/24hr?symbol=${symbol}`;
 
     const data = await axios.get(apiEndPoint);
     return data.data.result.markPriceRp;
@@ -169,22 +173,31 @@ const getCurrentPrice = async (symbol) => {
 
 const getLastTradeDirection = async () => {
     const response = await axios.get('http://localhost:8080/trades-today');
+    let sidee = null;
+    let posSidee = null;
+    let qty = null;
+    let symbol = null;
 
-    const sidee = response.data[0].side;
-    const posSidee = response.data[0].posSide;
-    const qty = response.data[0].execQtyRq;
-    const symbol = response.data[0].symbol;
-    return { sidee, posSidee, qty, symbol };
+    if (response.data.length > 0) {
+        sidee = response.data[0].side || sidee;
+        posSidee = response.data[0].posSide || posSidee;
+        qty = response.data[0].execQtyRq || qty;
+        symbol = response.data[0].symbol || symbol;
+    }
+
+    return { sidee, posSidee, qty, symbol }
 }
 
 const cancleAllOrders = async () => {
     let {
         apiKey,
         apiSecret,
-        pair
+        pair,
+        testnet
     } = readApiCredentials();
-    let apiEndPoint1 = PUBLIC_API_URL + `/g-orders/all?symbol=${pair}&untriggered=true`
-    let apiEndPoint2 = PUBLIC_API_URL + `/g-orders/all?symbol=${pair}&untriggered=false`
+    let URL = testnet === false ? PUBLIC_API_URL : TESTNET_API_URL;
+    let apiEndPoint1 = URL + `/g-orders/all?symbol=${pair}&untriggered=true`
+    let apiEndPoint2 = URL + `/g-orders/all?symbol=${pair}&untriggered=false`
     const currentUnixEpochTime = Math.floor(Date.now() / 1000) + 60;
     const sigdata1 = `/g-orders/allsymbol=${pair}&untriggered=true` + currentUnixEpochTime;
     const sigdata2 = `/g-orders/allsymbol=${pair}&untriggered=false` + currentUnixEpochTime;
@@ -212,9 +225,11 @@ const closeLastPosition = async () => {
     const { sidee, posSidee, qty, symbol } = await getLastTradeDirection();
     let {
         apiKey,
-        apiSecret
+        apiSecret,
+        testnet
     } = readApiCredentials();
-    let apiEndPoint = PUBLIC_API_URL + "/g-orders/create";
+    let URL = testnet === false ? PUBLIC_API_URL : TESTNET_API_URL;
+    let apiEndPoint = URL + "/g-orders/create";
     const clOrdID = cryptoRandomString({ length: 40 })
     const reduceOnly = false;
     const closeOnTrigger = false;
@@ -246,8 +261,8 @@ const placeTrailingSl = async (symboll, qty, direction) => {
     let {
         apiKey,
         apiSecret,
-        trailingStopLoss
-
+        trailingStopLoss,
+        testnet
     } = readApiCredentials();
     const clOrdID = cryptoRandomString({ length: 40 })
     const closeOnTrigger = true;
@@ -263,7 +278,8 @@ const placeTrailingSl = async (symboll, qty, direction) => {
     pegOffsetProportionRr = posSide === 'Long' ? pegOffsetProportionRr * -1 : pegOffsetProportionRr;
     const timeInForce = 'ImmediateOrCancel';
     const triggerType = 'ByLastPrice';
-    let apiEndPoint = PUBLIC_API_URL + "/g-orders/create";
+    let URL = testnet === false ? PUBLIC_API_URL : TESTNET_API_URL;
+    let apiEndPoint = URL + "/g-orders/create";
     apiEndPoint = apiEndPoint + `?clOrdID=${clOrdID}&stopPxRp=${stopPxRp}&closeOnTrigger=${closeOnTrigger}&ordType=${ordType}&pegOffsetProportionRr=${pegOffsetProportionRr}&pegPriceType=${pegPriceType}&posSide=${posSide}&side=${side}&symbol=${symbol}&timeInForce=${timeInForce}&triggerType=${triggerType}`;
     const currentUnixEpochTime = Math.floor(Date.now() / 1000) + 60;
     const sigData = "/g-orders/create" + `clOrdID=${clOrdID}&stopPxRp=${stopPxRp}&closeOnTrigger=${closeOnTrigger}&ordType=${ordType}&pegOffsetProportionRr=${pegOffsetProportionRr}&pegPriceType=${pegPriceType}&posSide=${posSide}&side=${side}&symbol=${symbol}&timeInForce=${timeInForce}&triggerType=${triggerType}` + currentUnixEpochTime;
@@ -314,15 +330,15 @@ app.post('/trade', async (req, res) => {
                 limitPrice,
                 limitDistance,
                 maxUSDTperTrade,
-                trailingStopLoss
-
+                testnet
             } = readApiCredentials();
             takeProfit = parseFloat(takeProfit);
             stopLoss = parseFloat(stopLoss)
             limitPrice = parseFloat(limitPrice)
             limitDistance = parseFloat(limitDistance)
             maxUSDTperTrade = parseFloat(maxUSDTperTrade)
-            let apiEndPoint = PUBLIC_API_URL + "/g-orders/create";
+            let URL = testnet === false ? PUBLIC_API_URL : TESTNET_API_URL;
+            let apiEndPoint = URL + "/g-orders/create";
             const clOrdID = cryptoRandomString({ length: 40 })
             const symbol = pair;
             const reduceOnly = false;
@@ -406,10 +422,12 @@ app.get('/trades-today', async (req, res) => {
     let {
         apiKey,
         apiSecret,
-        pair
+        pair,
+        testnet
     } = readApiCredentials();
     const currentUnixEpochTime = Math.floor(Date.now() / 1000) + 60;
-    let api = PUBLIC_API_URL + `/api-data/g-futures/trades?symbol=${pair}&start=${unixTimestamp}&limit=200`
+    let URL = testnet === false ? PUBLIC_API_URL : TESTNET_API_URL;
+    let api = URL + `/api-data/g-futures/trades?symbol=${pair}&start=${unixTimestamp}&limit=200`
 
     const sigdata = `/api-data/g-futures/tradessymbol=${pair}&start=${unixTimestamp}&limit=200` + currentUnixEpochTime;
     const signature = CryptoJS.HmacSHA256(sigdata, apiSecret).toString();
@@ -431,9 +449,11 @@ app.get('/orders-today', async (req, res) => {
     let {
         apiKey,
         apiSecret,
-        pair
+        pair,
+        testnet
     } = readApiCredentials();
-    let api = PUBLIC_API_URL + `/api-data/g-futures/orders?symbol=${pair}&start=${unixTimestamp}&limit=200`
+    let URL = testnet === false ? PUBLIC_API_URL : TESTNET_API_URL;
+    let api = URL + `/api-data/g-futures/orders?symbol=${pair}&start=${unixTimestamp}&limit=200`
     const currentUnixEpochTime = Math.floor(Date.now() / 1000) + 60;
     const sigdata = `/api-data/g-futures/orderssymbol=${pair}&start=${unixTimestamp}&limit=200` + currentUnixEpochTime;
     const signature = CryptoJS.HmacSHA256(sigdata, apiSecret).toString();
@@ -462,7 +482,7 @@ app.get('/pnl-today', async (req, res) => {
         amt = amt + parseFloat(trade.execFeeRv);
     })
 
-    if (sidee === 'Buy') {
+    if (sidee && sidee === 'Buy') {
         const recentTrade = response.data[0];
         const price = parseFloat(recentTrade.execPriceRp)
         const currentPrice = parseFloat(await getCurrentPrice(recentTrade.symbol))

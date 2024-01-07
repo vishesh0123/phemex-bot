@@ -9,7 +9,6 @@ import BotSettingPage from './BotSettingPage'
 import axios from 'axios'
 
 function HomePage({ ml, mt }) {
-    const [testMode, setTestMode] = useState(false)
     const [tradingType, setTradingType] = useState(4)
     const [pairs, setPairs] = useState({})
     const [selectedPair, setSelectedPair] = useState('')
@@ -44,15 +43,12 @@ function HomePage({ ml, mt }) {
             }}
             >
                 <Box width='450px' display='flex' justifyContent='space-between' alignItems='center'>
-                    {/* <KeyInput setApiKey={setApiKey} /> */}
-                    <SwitchMode setTestMode={setTestMode} />
                     <BotSettingPage />
                 </Box>
 
                 <Box width='450px' display='flex' justifyContent='space-between' alignItems='center'>
                     <TradingMode tradingType={tradingType} setTradingType={setTradingType} />
                     <PairsMenu
-                        testMode={testMode}
                         tradingType={tradingType}
                         pairs={pairs}
                         setPairs={setPairs}
@@ -62,7 +58,7 @@ function HomePage({ ml, mt }) {
                 </Box>
 
 
-                {<PlaceOrderPerps pairs={pairs} selectedPair={selectedPair} testMode={testMode} />}
+                {<PlaceOrderPerps pairs={pairs} selectedPair={selectedPair} />}
                 <Box sx={{ height: '50px' }}>
                     <Typography
                         sx=
