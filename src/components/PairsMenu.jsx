@@ -2,12 +2,8 @@ import { FormControl, InputLabel, MenuItem, Select } from '@mui/material'
 import React, { useEffect, useState } from 'react'
 import LoadPairs from './LoadPairs';
 
-function PairsMenu({ testMode, tradingType, pairs, setPairs, selectedPair, setSelectedPair }) {
-    useEffect(() => {
-        setSelectedPair('')
-        setPairs({})
+function PairsMenu({ pairs, setPairs, selectedPair, setSelectedPair }) {
 
-    }, [tradingType])
     return (
         <>
             <FormControl sx={{
@@ -32,13 +28,13 @@ function PairsMenu({ testMode, tradingType, pairs, setPairs, selectedPair, setSe
                 },
                 '& .MuiSelect-select': {
                     color: 'white', // Select text color
-                    fontWeight:'bold'
+                    fontWeight: 'bold'
                 },
                 '& .MuiSvgIcon-root': { // Dropdown icon color
                     color: 'white'
                 }
             }}>
-                <InputLabel id='pairs' sx={{ color: 'white !important' , fontWeight:'bold' }}>Pair</InputLabel>
+                <InputLabel id='pairs' sx={{ color: 'white !important', fontWeight: 'bold' }}>Pair</InputLabel>
                 <Select
                     labelId='pairs'
                     label='Pairs'
@@ -51,20 +47,13 @@ function PairsMenu({ testMode, tradingType, pairs, setPairs, selectedPair, setSe
                     onChange={(event) => { setSelectedPair(event.target.value) }}
                 >
                     {!(Object.keys(pairs).length == 0) && Object.keys(pairs).map((key) => {
-                        if (tradingType == 4 && pairs[key].status === 'Listed') {
+                        if (pairs[key].status === 'Listed') {
                             return <MenuItem key={key} value={key}>{pairs[key].symbol}</MenuItem>
-                        }
-
-                        if ((tradingType == 1 || tradingType == 2) && pairs[key].status === 'Listed' && pairs[key].type === 'Spot') {
-                            return <MenuItem key={key} value={key}>{pairs[key].displaySymbol}</MenuItem>
-
                         }
                     })}
                 </Select>
             </FormControl>
             <LoadPairs
-                testMode={testMode}
-                tradingType={tradingType}
                 setPairs={setPairs}
             />
         </>

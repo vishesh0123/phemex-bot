@@ -9,7 +9,6 @@ import BotSettingPage from './BotSettingPage'
 import axios from 'axios'
 
 function HomePage({ ml, mt }) {
-    const [tradingType, setTradingType] = useState(4)
     const [pairs, setPairs] = useState({})
     const [selectedPair, setSelectedPair] = useState('')
     const [pnl, setpnl] = useState(0);
@@ -47,9 +46,8 @@ function HomePage({ ml, mt }) {
                 </Box>
 
                 <Box width='450px' display='flex' justifyContent='space-between' alignItems='center'>
-                    <TradingMode tradingType={tradingType} setTradingType={setTradingType} />
+                    <TradingMode />
                     <PairsMenu
-                        tradingType={tradingType}
                         pairs={pairs}
                         setPairs={setPairs}
                         selectedPair={selectedPair}

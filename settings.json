@@ -6,7 +6,6 @@
   "apiKey": "e30110f6-c866-47e9-a6eb-1179edbdd562",
   "apiSecret": "B-nIAxurgM20oCBGsIaYAYS5601SuBf8u45u5E3cNWw5NjYxMmEwMC1jMWFjLTRkMTUtYjNiMi0zNTM2ZDQ3MjJjNTc",
   "leverage": "10",
-  "pair": "BTCUSDT",
   "takeProfit": "5",
   "stopLoss": "2",
   "trailingStopLoss": "1",

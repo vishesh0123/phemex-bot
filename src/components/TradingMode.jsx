@@ -1,7 +1,7 @@
 import { FormControl, InputLabel, MenuItem, Select } from '@mui/material'
 import React, { useState } from 'react'
 
-function TradingMode({ tradingType, setTradingType }) {
+function TradingMode() {
     return (
         <FormControl sx={{
             width: '150px',
@@ -40,7 +40,6 @@ function TradingMode({ tradingType, setTradingType }) {
                     },
                 }}
                 value={4}
-                onChange={(event) => { setTradingType(Number(event.target.value)) }}
             >
                 <MenuItem value={4}>USD$-M Perpetual (Hedged Contracts)</MenuItem>
 

@@ -3,7 +3,6 @@ import React, { useState } from 'react';
 import KeyInput from './KeyInput';
 import SettingsIcon from '@mui/icons-material/Settings';
 import axios from 'axios';
-import PairsMenu from './PairsMenu'
 import file from '../../settings.json';
 import BotConfig from '../../bot.config';
 import CryptoJS from 'crypto-js';
@@ -14,12 +13,12 @@ function BotSettingPage() {
     const [orderType, setOrderType] = useState(Number(file.orderType));
     const [leverageMode, setLeverageMode] = useState(Number(file.marginMode))
     const [posMode, setPosMode] = useState(Number(file.posMode))
-    const [pairs, setPairs] = useState({})
-    const [selectedPair, setSelectedPair] = useState('')
     const [testnet, setTestnet] = useState(file.testnet);
 
     const setLeverage = async (merged) => {
-        let apiEndPoint = BotConfig.proxy.public.rest + "/g-positions/leverage"
+        let apiEndPoint = testnet ?
+            BotConfig.proxy.testnet.rest + "/g-positions/leverage" :
+            BotConfig.proxy.public.rest + "/g-positions/leverage";
         const symbol = merged.pair
         let leverageRr = Number(merged.leverage)
         if (leverageMode === 1) {
@@ -27,7 +26,7 @@ function BotSettingPage() {
         }
         let signature;
         const currentUnixEpochTime = Math.floor(Date.now() / 1000) + 60;
-        if (posMode === 1) { //one way
+        if (posMode === 1) {
             apiEndPoint = apiEndPoint + `?symbol=${symbol}&leverageRr=${leverageRr}`
             const sigData = '/g-positions/leverage' + `symbol=${symbol}&leverageRr=${leverageRr}` + currentUnixEpochTime
             console.log(sigData);
@@ -41,9 +40,6 @@ function BotSettingPage() {
             signature = CryptoJS.HmacSHA256(sigData, merged.apiSecret).toString();
         }
 
-        console.log(apiEndPoint);
-        console.log(merged);
-        console.log(signature);
         const data = await axios.put(apiEndPoint, null, {
             headers: {
                 'x-phemex-access-token': file.apiKey,
@@ -51,7 +47,6 @@ function BotSettingPage() {
                 'x-phemex-request-signature': signature
             }
         })
-        console.log(data);
 
     }
 
@@ -62,13 +57,10 @@ function BotSettingPage() {
             orderType: orderType,
             marginMode: leverageMode,
             posMode: posMode,
-            pair: selectedPair === '' ? file.pair : pairs[selectedPair].symbol,
             testnet: testnet
         }
         try {
             const response = await axios.post('http://127.0.0.1:8080/save-config', merged);
-            await setLeverage(merged)
-
             if (response.data.success) {
                 console.log('Configuration saved successfully.');
             } else {
@@ -113,17 +105,6 @@ function BotSettingPage() {
                         <KeyInput text='takeProfit' type='text' setting={setting} saveSetting={saveSetting} value={file.takeProfit} />
                         <KeyInput text='stopLoss' type='text' setting={setting} saveSetting={saveSetting} value={file.stopLoss} />
                         <KeyInput text='trailingStopLoss' type='text' setting={setting} saveSetting={saveSetting} value={file.trailingStopLoss} />
-                        <Box sx={{ display: 'flex', justifyContent: 'space-evenly', mt: '20px', mb: '20px' }}>
-                            <PairsMenu
-                                testMode={false}
-                                tradingType={4}
-                                pairs={pairs}
-                                setPairs={setPairs}
-                                selectedPair={selectedPair}
-                                setSelectedPair={setSelectedPair}
-                            />
-                        </Box>
-                        <Typography sx={{ 'color': 'white', fontWeight: 'bold' }}>SELECTED PAIR : {file.pair}</Typography>
 
                         <FormControl sx={{
                             width: '400px',
@@ -131,29 +112,29 @@ function BotSettingPage() {
                             ml: '20px',
                             pb: '10px',
                             color: 'white',
-                            fontWeight: 'bold', // Default color
-                            '& .MuiInputLabel-root': { // Label styles
-                                color: 'white', // Label color
+                            fontWeight: 'bold',
+                            '& .MuiInputLabel-root': {
+                                color: 'white',
                             },
                             '& .MuiOutlinedInput-root': {
                                 '& fieldset': {
-                                    borderColor: 'white', // Default border color
+                                    borderColor: 'white',
                                 },
                                 '&:hover fieldset': {
-                                    borderColor: 'white', // Hover border color
+                                    borderColor: 'white',
                                 },
                                 '&.Mui-focused fieldset': {
-                                    borderColor: 'white', // Focused border color
+                                    borderColor: 'white',
                                 },
                                 '& input': {
-                                    color: 'white', // Input text color
+                                    color: 'white',
                                 },
                             },
                             '& .MuiSelect-select': {
-                                color: 'white', // Select text color
+                                color: 'white',
                                 fontWeight: 'bold'
                             },
-                            '& .MuiSvgIcon-root': { // Dropdown icon color
+                            '& .MuiSvgIcon-root': {
                                 color: 'white'
                             }
                         }}>
@@ -163,7 +144,7 @@ function BotSettingPage() {
                                 label='Order Type'
                                 sx={{
                                     '& .MuiSelect-icon': {
-                                        color: 'white', // Dropdown icon color
+                                        color: 'white',
                                     },
                                 }}
                                 value={orderType}
@@ -187,22 +168,22 @@ function BotSettingPage() {
                             width: '400px',
                             mt: '20px',
                             ml: '20px',
-                            color: 'white', // Default color
+                            color: 'white',
                             '& .MuiInputLabel-root': { // Label styles
                                 color: 'white', // Label color
                             },
                             '& .MuiOutlinedInput-root': {
                                 '& fieldset': {
-                                    borderColor: 'white', // Default border color
+                                    borderColor: 'white',
                                 },
                                 '&:hover fieldset': {
                                     borderColor: 'white', // Hover border color
                                 },
                                 '&.Mui-focused fieldset': {
-                                    borderColor: 'white', // Focused border color
+                                    borderColor: 'white',
                                 },
                                 '& input': {
-                                    color: 'white', // Input text color
+                                    color: 'white',
                                     fontWeight: 'bold'
                                 },
                             },

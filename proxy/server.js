@@ -22,7 +22,6 @@ const io = new SocketIOServer(httpServer, {
 
 // Configuration for public and testnet
 const PUBLIC_API_URL = "https://api.phemex.com";
-// const TESTNET_API_URL = "https://testnet-api.phemex.com";
 const TESTNET_API_URL = "https://testnet-api.phemex.com";
 const PORT = 8080;
 const __dirname = path.dirname(new URL(import.meta.url).pathname);
@@ -96,7 +95,7 @@ app.post('/save-config', express.json(), (req, res) => {
 
         res.status(200).json({ success: true, message: 'Configuration saved successfully.' });
     } catch (error) {
-        console.error(error);
+        io.emit("error", "Failed To Save Configuration");
         res.status(500).json({ success: false, message: 'Internal server error.' });
     }
 });
@@ -105,44 +104,81 @@ let cacheData = {
     date: new Date('2024-01-01').toDateString(),
     logsCounter: 0,
     tradinghalt: false
-}
+};
 
 const runEveryMinute = async () => {
-    const response = await axios.get('http://localhost:8080/trades-today');
-    const today = new Date().toDateString();
-    let { discordWebhook, dailyProfitThreshold, dailyLossThreshold } = readApiCredentials();
-    if (today !== cacheData.date) {
-        cacheData.date = today;
-        cacheData.logsCounter = response.data.length;
-    }
-    if (response.data.length > cacheData.logsCounter) {
-        const diff = response.data.length - cacheData.logsCounter;
-        io.emit("NewSignal", "");
-        for (let i = cacheData.logsCounter; i < response.data.length; i++) {
-            const trade = response.data[i];
-            const payload = {
-                content: `OrderId=${trade.orderID}\nSymbol=${trade.symbol}\nExecPrice=${trade.execPriceRp}\nClosedPnl=${trade.closedPnlRv}\nExecuted Qty=${trade.execQtyRq}\nOrderType=${trade.ordType}\nPosSide=${trade.posSide}`,
-            };
-            const response1 = await axios.post(discordWebhook, payload);
-            console.log(response1.data);
+    try {
+        const today = new Date().toDateString();
+        let { discordWebhook, dailyProfitThreshold, dailyLossThreshold } = readApiCredentials();
 
+        // Handling errors for HTTP request to get trades of today
+        const response = await axios.get('http://localhost:8080/trades-today').catch(err => {
+            throw new Error(`Failed to fetch trades: ${err.message}`);
+        });
+
+        if (today !== cacheData.date) {
+            cacheData.date = today;
+            cacheData.logsCounter = response.data.length;
         }
-        cacheData.logsCounter = response.data.length;
 
+        if (response.data.length > cacheData.logsCounter) {
+            const diff = response.data.length - cacheData.logsCounter;
+            io.emit("NewSignal", "");
+            for (let i = cacheData.logsCounter; i < response.data.length; i++) {
+                const trade = response.data[i];
+                const payload = {
+                    content: `OrderId=${trade.orderID}\nSymbol=${trade.symbol}\nExecPrice=${trade.execPriceRp}\nClosedPnl=${trade.closedPnlRv}\nExecuted Qty=${trade.execQtyRq}\nOrderType=${trade.ordType}\nPosSide=${trade.posSide}`,
+                };
+                // Handling errors for HTTP request to post to Discord webhook
+                const response1 = await axios.post(discordWebhook, payload).catch(err => {
+                    console.error(`Failed to post to Discord: ${err.message}`);
+                });
+                console.log(response1?.data);
+            }
+            cacheData.logsCounter = response.data.length;
+        }
+
+        // Handling errors for HTTP request to get today's PnL
+        const pnlResponse = await axios.get('http://localhost:8080/pnl-today').catch(err => {
+            throw new Error(`Failed to fetch PnL: ${err.message}`);
+        });
+        const pnl = pnlResponse.data;
+
+        if ((pnl >= Number(dailyProfitThreshold)) || (pnl <= (Number(dailyLossThreshold) * -1))) {
+            cacheData.tradinghalt = true;
+            closeLastPosition();
+        }
+    } catch (error) {
+        console.error(`An error occurred: ${error.message}`);
+        // Handle the error appropriately here (e.g., retry mechanism, alerting, etc.)
     }
-    const pnl = await axios.get('http://localhost:8080/pnl-today');
-    if ((pnl >= Number(dailyProfitThreshold)) || (pnl <= (Number(dailyLossThreshold) * -1))) {
-        cacheData.tradinghalt = true;
-        closeLastPosition()
-    }
+};
 
-
-}
 setInterval(runEveryMinute, 10000);
 
 function readApiCredentials() {
-    const fileContents = fs.readFileSync(SETTING, 'utf8');
-    return JSON.parse(fileContents);
+    try {
+        // Read the file contents
+        const fileContents = fs.readFileSync(SETTING, 'utf8');
+
+        // Try parsing the file contents as JSON
+        try {
+            const credentials = JSON.parse(fileContents);
+            return credentials;
+        } catch (parseError) {
+            // Handle JSON parsing errors
+            console.error('Failed to parse the API credentials file as JSON:', parseError);
+            throw new Error('Invalid JSON format in API credentials file.');
+        }
+    } catch (readError) {
+        // Handle file reading errors
+        if (readError.code === 'ENOENT') {
+            console.error(`API credentials file not found: ${SETTING}`);
+        } else {
+            console.error(`Error reading the API credentials file: ${readError}`);
+        }
+        throw readError;  // Re-throw the error to handle it further up the call stack
+    }
 }
 
 io.on('connection', (socket) => {
@@ -160,16 +196,31 @@ io.on('connection', (socket) => {
 });
 
 const getCurrentPrice = async (symbol) => {
-    let {
-        testnet
-    } = readApiCredentials();
-    let URL = testnet === false ? PUBLIC_API_URL : TESTNET_API_URL;
-    let apiEndPoint = URL + `/md/v2/ticker/24hr?symbol=${symbol}`;
+    try {
+        // Attempt to read the API credentials
+        let { testnet } = readApiCredentials(); // Make sure the readApiCredentials function is properly error-handled.
+        let URL = testnet === false ? PUBLIC_API_URL : TESTNET_API_URL;
+        let apiEndPoint = URL + `/md/v2/ticker/24hr?symbol=${symbol}`;
 
-    const data = await axios.get(apiEndPoint);
-    return data.data.result.markPriceRp;
+        // Attempt to make the HTTP request
+        const response = await axios.get(apiEndPoint);
 
-}
+        // Check if the required data is present
+        if (response.data && response.data.result && response.data.result.markPriceRp) {
+            return response.data.result.markPriceRp;
+        } else {
+            // Handle the case where the data structure is not as expected
+            throw new Error('Unexpected response structure');
+        }
+
+    } catch (error) {
+        // Log the error
+        console.error(`Failed to get the current price for ${symbol}:`, error);
+
+        // Depending on your application's needs, you might want to re-throw the error, return null, or handle it in some other way
+        throw error; // or return null; or any other error handling mechanism
+    }
+};
 
 const getLastTradeDirection = async () => {
     const response = await axios.get('http://localhost:8080/trades-today');
@@ -188,38 +239,47 @@ const getLastTradeDirection = async () => {
     return { sidee, posSidee, qty, symbol }
 }
 
-const cancleAllOrders = async () => {
-    let {
-        apiKey,
-        apiSecret,
-        pair,
-        testnet
-    } = readApiCredentials();
-    let URL = testnet === false ? PUBLIC_API_URL : TESTNET_API_URL;
-    let apiEndPoint1 = URL + `/g-orders/all?symbol=${pair}&untriggered=true`
-    let apiEndPoint2 = URL + `/g-orders/all?symbol=${pair}&untriggered=false`
-    const currentUnixEpochTime = Math.floor(Date.now() / 1000) + 60;
-    const sigdata1 = `/g-orders/allsymbol=${pair}&untriggered=true` + currentUnixEpochTime;
-    const sigdata2 = `/g-orders/allsymbol=${pair}&untriggered=false` + currentUnixEpochTime;
-    const signature1 = CryptoJS.HmacSHA256(sigdata1, apiSecret).toString();
-    const signature2 = CryptoJS.HmacSHA256(sigdata2, apiSecret).toString();
-    const data1 = await axios.delete(apiEndPoint1, {
-        headers: {
-            'x-phemex-access-token': apiKey,
-            'x-phemex-request-expiry': currentUnixEpochTime,
-            'x-phemex-request-signature': signature1
-        }
-    });
-    const data2 = await axios.delete(apiEndPoint2, {
-        headers: {
-            'x-phemex-access-token': apiKey,
-            'x-phemex-request-expiry': currentUnixEpochTime,
-            'x-phemex-request-signature': signature2
-        }
-    });
+const cancelAllOrders = async (pair) => {
+    try {
+        // Attempt to read the API credentials
+        let { apiKey, apiSecret, testnet } = readApiCredentials(); // Ensure readApiCredentials() is properly error-handled.
+        let URL = testnet === false ? PUBLIC_API_URL : TESTNET_API_URL;
+        let apiEndPoint1 = URL + `/g-orders/all?symbol=${pair}&untriggered=true`;
+        let apiEndPoint2 = URL + `/g-orders/all?symbol=${pair}&untriggered=false`;
+        const currentUnixEpochTime = Math.floor(Date.now() / 1000) + 60;
+        const sigdata1 = `/g-orders/allsymbol=${pair}&untriggered=true` + currentUnixEpochTime;
+        const sigdata2 = `/g-orders/allsymbol=${pair}&untriggered=false` + currentUnixEpochTime;
+        const signature1 = CryptoJS.HmacSHA256(sigdata1, apiSecret).toString();
+        const signature2 = CryptoJS.HmacSHA256(sigdata2, apiSecret).toString();
 
+        // Make two delete requests in parallel
+        const [response1, response2] = await Promise.all([
+            axios.delete(apiEndPoint1, {
+                headers: {
+                    'x-phemex-access-token': apiKey,
+                    'x-phemex-request-expiry': currentUnixEpochTime,
+                    'x-phemex-request-signature': signature1
+                }
+            }),
+            axios.delete(apiEndPoint2, {
+                headers: {
+                    'x-phemex-access-token': apiKey,
+                    'x-phemex-request-expiry': currentUnixEpochTime,
+                    'x-phemex-request-signature': signature2
+                }
+            })
+        ]);
 
-}
+        // Do something with the responses if needed
+        console.log('Orders cancelled:', response1.data, response2.data);
+    } catch (error) {
+        // Log the error
+        console.error(`Failed to cancel all orders for ${pair}:`, error);
+
+        // Depending on your application's needs, you might want to re-throw the error, return a status, or handle it in some other way
+        throw error; // or return some error status; or any other error handling mechanism
+    }
+};
 
 const closeLastPosition = async () => {
     const { sidee, posSidee, qty, symbol } = await getLastTradeDirection();
@@ -253,220 +313,235 @@ const closeLastPosition = async () => {
 
 }
 
-const cancleOrderById = async (id) => {
-
-}
-
-const placeTrailingSl = async (symboll, qty, direction) => {
-    let {
-        apiKey,
-        apiSecret,
-        trailingStopLoss,
-        testnet
-    } = readApiCredentials();
-    const clOrdID = cryptoRandomString({ length: 40 })
-    const closeOnTrigger = true;
-    const currentPrice = parseFloat(await getCurrentPrice(symboll));
-    const stopPxRp = currentPrice - (currentPrice * parseFloat(trailingStopLoss) / 100);
-    const ordType = 'Stop';
-    const orderQtyRq = qty;
-    let pegOffsetProportionRr = parseFloat(trailingStopLoss) / 100;
-    let pegPriceType = 'TrailingStopByProportionPeg';
-    const posSide = direction;
-    const side = direction === 'Long' ? 'Sell' : 'Buy';
-    const symbol = symboll;
-    pegOffsetProportionRr = posSide === 'Long' ? pegOffsetProportionRr * -1 : pegOffsetProportionRr;
-    const timeInForce = 'ImmediateOrCancel';
-    const triggerType = 'ByLastPrice';
-    let URL = testnet === false ? PUBLIC_API_URL : TESTNET_API_URL;
-    let apiEndPoint = URL + "/g-orders/create";
-    apiEndPoint = apiEndPoint + `?clOrdID=${clOrdID}&stopPxRp=${stopPxRp}&closeOnTrigger=${closeOnTrigger}&ordType=${ordType}&pegOffsetProportionRr=${pegOffsetProportionRr}&pegPriceType=${pegPriceType}&posSide=${posSide}&side=${side}&symbol=${symbol}&timeInForce=${timeInForce}&triggerType=${triggerType}`;
-    const currentUnixEpochTime = Math.floor(Date.now() / 1000) + 60;
-    const sigData = "/g-orders/create" + `clOrdID=${clOrdID}&stopPxRp=${stopPxRp}&closeOnTrigger=${closeOnTrigger}&ordType=${ordType}&pegOffsetProportionRr=${pegOffsetProportionRr}&pegPriceType=${pegPriceType}&posSide=${posSide}&side=${side}&symbol=${symbol}&timeInForce=${timeInForce}&triggerType=${triggerType}` + currentUnixEpochTime;
-    const signature = CryptoJS.HmacSHA256(sigData, apiSecret).toString();
-    const data = await axios.put(apiEndPoint, null, {
-        headers: {
-            'x-phemex-access-token': apiKey,
-            'x-phemex-request-expiry': currentUnixEpochTime,
-            'x-phemex-request-signature': signature
-        }
-    })
-    console.log(data.data);
 
 
-}
+const placeTrailingSl = async (symbol, qty, direction) => {
+    try {
+        // Attempt to read the API credentials
+        let { apiKey, apiSecret, trailingStopLoss, testnet } = readApiCredentials(); // Ensure readApiCredentials() is properly error-handled.
+        const clOrdID = cryptoRandomString({ length: 40 });
+        const closeOnTrigger = true;
+        const currentPrice = parseFloat(await getCurrentPrice(symbol).catch(err => { throw new Error(`Failed to fetch current price: ${err.message}`); }));
+        const stopPxRp = currentPrice - (currentPrice * parseFloat(trailingStopLoss) / 100);
+        const ordType = 'Stop';
+        const orderQtyRq = qty;
+        let pegOffsetProportionRr = parseFloat(trailingStopLoss) / 100;
+        let pegPriceType = 'TrailingStopByProportionPeg';
+        const posSide = direction;
+        const side = direction === 'Long' ? 'Sell' : 'Buy';
+        pegOffsetProportionRr = posSide === 'Long' ? pegOffsetProportionRr * -1 : pegOffsetProportionRr;
+        const timeInForce = 'ImmediateOrCancel';
+        const triggerType = 'ByLastPrice';
+        let URL = testnet === false ? PUBLIC_API_URL : TESTNET_API_URL;
+        let apiEndPoint = `${URL}/g-orders/create?clOrdID=${clOrdID}&stopPxRp=${stopPxRp}&closeOnTrigger=${closeOnTrigger}&ordType=${ordType}&pegOffsetProportionRr=${pegOffsetProportionRr}&pegPriceType=${pegPriceType}&posSide=${posSide}&side=${side}&symbol=${symbol}&timeInForce=${timeInForce}&triggerType=${triggerType}`;
+        const currentUnixEpochTime = Math.floor(Date.now() / 1000) + 60;
+        const sigData = `/g-orders/createclOrdID=${clOrdID}&stopPxRp=${stopPxRp}&closeOnTrigger=${closeOnTrigger}&ordType=${ordType}&pegOffsetProportionRr=${pegOffsetProportionRr}&pegPriceType=${pegPriceType}&posSide=${posSide}&side=${side}&symbol=${symbol}&timeInForce=${timeInForce}&triggerType=${triggerType}` + currentUnixEpochTime;
+        const signature = CryptoJS.HmacSHA256(sigData, apiSecret).toString();
+
+        // Make the PUT request
+        const response = await axios.put(apiEndPoint, null, {
+            headers: {
+                'x-phemex-access-token': apiKey,
+                'x-phemex-request-expiry': currentUnixEpochTime,
+                'x-phemex-request-signature': signature
+            }
+        });
+
+        // Do something with the response if needed
+        console.log('Order placed:', response.data);
+    } catch (error) {
+        // Log the error
+        console.error(`Failed to place trailing stop loss for ${symbol}:`, error);
+
+        // Depending on your application's needs, you might want to re-throw the error, return a status, or handle it in some other way
+        throw error; // or return some error status; or any other error handling mechanism
+    }
+};
 
 app.post('/trade', async (req, res) => {
-
-    if (cacheData.tradinghalt === true) {
-        res.status(400).json({ error: 'Bad Request', message: 'Profit/Loss Threshold Reached' });
-
-    } else {
-        const { sidee, posSidee } = await getLastTradeDirection();
-        let executeTrade = false;
-        if ((sidee === 'Buy' && posSidee === 'Long') || (sidee === 'Sell' && posSidee === 'Short')) {
-            if (posSidee.toUpperCase() === req.body) {
-                res.status(400).json({ error: 'Bad Request', message: 'Your request is invalid.' });
-
-            } else {
-                await closeLastPosition();
-                executeTrade = true;
-            }
-
-        } else {
-            await cancleAllOrders();
-            executeTrade = true;
+    try {
+        let parsedBody;
+        try {
+            parsedBody = JSON.parse('{' + req.body + '}'); 
+        } catch (parseError) {
+            return res.status(400).json({ error: 'Bad Request', message: 'Invalid JSON format' });
         }
 
+        const pair = parsedBody.symbol;
+        const close = parseFloat(parsedBody.price);
+        const signal = parsedBody.direction === '{{long}}' ? 'Long' : 'Short';
 
-        if (executeTrade === true) {
-            let {
-                apiKey,
-                apiSecret,
-                orderType,
-                pair,
-                takeProfit,
-                stopLoss,
-                limitPrice,
-                limitDistance,
-                maxUSDTperTrade,
-                testnet
-            } = readApiCredentials();
-            takeProfit = parseFloat(takeProfit);
-            stopLoss = parseFloat(stopLoss)
-            limitPrice = parseFloat(limitPrice)
-            limitDistance = parseFloat(limitDistance)
-            maxUSDTperTrade = parseFloat(maxUSDTperTrade)
-            let URL = testnet === false ? PUBLIC_API_URL : TESTNET_API_URL;
-            let apiEndPoint = URL + "/g-orders/create";
-            const clOrdID = cryptoRandomString({ length: 40 })
-            const symbol = pair;
-            const reduceOnly = false;
-            const closeOnTrigger = false;
-            const currentPrice = parseFloat(await getCurrentPrice(pair));
-            const orderQtyRq = maxUSDTperTrade / currentPrice;
-            const ordType = orderType === 1 ? 'Market' : 'Limit'
-            let priceRp = req.body === 'LONG' ?
-                currentPrice - (currentPrice * limitPrice / 100) :
-                currentPrice + (currentPrice * limitPrice / 100);
-            priceRp = orderType !== 1 ? priceRp : null;
-            let side = req.body === 'LONG' ? 'Buy' : 'Sell';
-            const posSide = req.body === 'LONG' ? 'Long' : 'Short';
-            const timeInForce = orderType === 1 ? 'ImmediateOrCancel' : 'GoodTillCancel';
-            let takeProfitRp = req.body === 'LONG' ?
-                (orderType === 1 ? (currentPrice + (currentPrice * takeProfit / 100)) : (priceRp + (priceRp * takeProfit / 100))) :
-                (orderType === 1 ? (currentPrice - (currentPrice * takeProfit / 100)) : (priceRp - (priceRp * takeProfit / 100)));
-            let stopLossRp = req.body === 'LONG' ?
-                (orderType === 1 ? (currentPrice - (currentPrice * stopLoss / 100)) : (priceRp - (priceRp * stopLoss / 100))) :
-                (orderType === 1 ? (currentPrice + (currentPrice * stopLoss / 100)) : (priceRp + (priceRp * stopLoss / 100)));
-            priceRp = orderType === 3 ?
-                (
-                    req.body === 'LONG' ?
-                        priceRp - (priceRp * limitDistance / 100) :
-                        priceRp + (priceRp * limitDistance / 100)
-                ) :
-                priceRp;
-            takeProfitRp = orderType === 3 ?
-                (
-                    req.body === 'LONG' ?
-                        (priceRp + (priceRp * takeProfit / 100)) :
-                        (priceRp - (priceRp * takeProfit / 100))
-                ) :
-                takeProfitRp;
-            stopLossRp = orderType === 3 ?
-                (
-                    req.body === 'LONG' ?
-                        (priceRp - (priceRp * stopLoss / 100)) :
-                        (priceRp + (priceRp * stopLoss / 100))
-                ) :
-                stopLossRp;
-            const currentUnixEpochTime = Math.floor(Date.now() / 1000) + 60;
-            let signature;
-            apiEndPoint = apiEndPoint + `?clOrdID=${clOrdID}&symbol=${symbol}&reduceOnly=${reduceOnly}&closeOnTrigger=${closeOnTrigger}&orderQtyRq=${orderQtyRq}&ordType=${ordType}&side=${side}&posSide=${posSide}&timeInForce=${timeInForce}&takeProfitRp=${takeProfitRp}&stopLossRp=${stopLossRp}`;
-            if (orderType === 1) {
-                const sigData = '/g-orders/create' + `clOrdID=${clOrdID}&symbol=${symbol}&reduceOnly=${reduceOnly}&closeOnTrigger=${closeOnTrigger}&orderQtyRq=${orderQtyRq}&ordType=${ordType}&side=${side}&posSide=${posSide}&timeInForce=${timeInForce}&takeProfitRp=${takeProfitRp}&stopLossRp=${stopLossRp}` + currentUnixEpochTime;
-                signature = CryptoJS.HmacSHA256(sigData, apiSecret).toString();
+        if (cacheData.tradinghalt === true) {
+            return res.status(400).json({ error: 'Bad Request', message: 'Profit/Loss Threshold Reached' });
+        }
 
-            } else {
-                apiEndPoint = apiEndPoint + `&priceRp=${priceRp}`
-                const sigData = '/g-orders/create' + `clOrdID=${clOrdID}&symbol=${symbol}&reduceOnly=${reduceOnly}&closeOnTrigger=${closeOnTrigger}&orderQtyRq=${orderQtyRq}&ordType=${ordType}&side=${side}&posSide=${posSide}&timeInForce=${timeInForce}&takeProfitRp=${takeProfitRp}&stopLossRp=${stopLossRp}&priceRp=${priceRp}` + currentUnixEpochTime;
-                signature = CryptoJS.HmacSHA256(sigData, apiSecret).toString();
+        let {
+            apiKey,
+            apiSecret,
+            orderType,
+            takeProfit,
+            stopLoss,
+            limitDistance,
+            maxUSDTperTrade,
+            testnet
+        } = readApiCredentials();
 
-            }
+        takeProfit = parseFloat(takeProfit);
+        stopLoss = parseFloat(stopLoss)
+        limitDistance = parseFloat(limitDistance)
+        maxUSDTperTrade = parseFloat(maxUSDTperTrade)
+        const URL = testnet === false ? PUBLIC_API_URL : TESTNET_API_URL;
+        let apiEndPoint = URL + "/g-orders/create";
+        const clOrdID = cryptoRandomString({ length: 40 })
+        const symbol = pair;
+        const reduceOnly = false;
+        const closeOnTrigger = false;
+        const ordType = orderType === 1 ? 'Market' : 'Limit'
+        let orderQtyRq = maxUSDTperTrade / close;
+        let priceRp = close;
+        priceRp = orderType !== 1 ? priceRp : null;
+
+        let side = signal === 'Long' ? 'Buy' : 'Sell';
+        const posSide = signal;
+        const timeInForce = orderType === 1 ? 'ImmediateOrCancel' : 'GoodTillCancel';
+
+        let takeProfitRp = signal === 'Long' ? (close + (close * takeProfit / 100)) : (close - (close * takeProfit / 100));
+        let stopLossRp = signal === 'Long' ? (close - (close * stopLoss / 100)) : (close + (close * stopLoss / 100));
+
+        //limit distance
+        priceRp = orderType === 3 ?
+            (
+                signal === 'Long' ?
+                    priceRp - (priceRp * limitDistance / 100) :
+                    priceRp + (priceRp * limitDistance / 100)
+            ) :
+            priceRp;
+        takeProfitRp = orderType === 3 ?
+            (
+                signal === 'Long' ?
+                    (priceRp + (priceRp * takeProfit / 100)) :
+                    (priceRp - (priceRp * takeProfit / 100))
+            ) :
+            takeProfitRp;
+        stopLossRp = orderType === 3 ?
+            (
+                signal === 'Long' ?
+                    (priceRp - (priceRp * stopLoss / 100)) :
+                    (priceRp + (priceRp * stopLoss / 100))
+            ) :
+            stopLossRp;
+        orderQtyRq = orderType === 3 ? (maxUSDTperTrade / close) : orderQtyRq;
+
+        const currentUnixEpochTime = Math.floor(Date.now() / 1000) + 60;
+        let signature;
+        apiEndPoint = apiEndPoint + `?clOrdID=${clOrdID}&symbol=${symbol}&reduceOnly=${reduceOnly}&closeOnTrigger=${closeOnTrigger}&orderQtyRq=${orderQtyRq}&ordType=${ordType}&side=${side}&posSide=${posSide}&timeInForce=${timeInForce}&takeProfitRp=${takeProfitRp}&stopLossRp=${stopLossRp}`;
+        if (orderType === 1) {
+            const sigData = '/g-orders/create' + `clOrdID=${clOrdID}&symbol=${symbol}&reduceOnly=${reduceOnly}&closeOnTrigger=${closeOnTrigger}&orderQtyRq=${orderQtyRq}&ordType=${ordType}&side=${side}&posSide=${posSide}&timeInForce=${timeInForce}&takeProfitRp=${takeProfitRp}&stopLossRp=${stopLossRp}` + currentUnixEpochTime;
+            signature = CryptoJS.HmacSHA256(sigData, apiSecret).toString();
+
+        } else {
+            apiEndPoint = apiEndPoint + `&priceRp=${priceRp}`
+            const sigData = '/g-orders/create' + `clOrdID=${clOrdID}&symbol=${symbol}&reduceOnly=${reduceOnly}&closeOnTrigger=${closeOnTrigger}&orderQtyRq=${orderQtyRq}&ordType=${ordType}&side=${side}&posSide=${posSide}&timeInForce=${timeInForce}&takeProfitRp=${takeProfitRp}&stopLossRp=${stopLossRp}&priceRp=${priceRp}` + currentUnixEpochTime;
+            signature = CryptoJS.HmacSHA256(sigData, apiSecret).toString();
+
+        }
+
+        try {
             const data = await axios.put(apiEndPoint, null, {
                 headers: {
                     'x-phemex-access-token': apiKey,
                     'x-phemex-request-expiry': currentUnixEpochTime,
                     'x-phemex-request-signature': signature
                 }
-            })
-            await placeTrailingSl(pair, orderQtyRq, posSide);
-            console.log(data.data);
-            if (data.data && data.data.code == 0) {
-                io.emit("NewSignal", [req.body, data.data.data, pair]);
-                await runEveryMinute();
-
-            }
+            });
+            res.json(data.data);
+        } catch (networkError) {
+            console.error(`Network error: ${networkError.message}`);
+            res.status(500).json({ error: 'Internal Server Error', message: 'Failed to execute trade' });
         }
+    } catch (error) {
+        console.error(`Failed to process trade: ${error.message}`);
+        res.status(500).json({ error: 'Internal Server Error', message: 'An error occurred while processing the trade.' });
     }
+});
 
 
-
-
-})
 
 app.get('/trades-today', async (req, res) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const unixTimestamp = Math.floor(today.getTime());
-    let {
-        apiKey,
-        apiSecret,
-        pair,
-        testnet
-    } = readApiCredentials();
-    const currentUnixEpochTime = Math.floor(Date.now() / 1000) + 60;
-    let URL = testnet === false ? PUBLIC_API_URL : TESTNET_API_URL;
-    let api = URL + `/api-data/g-futures/trades?symbol=${pair}&start=${unixTimestamp}&limit=200`
+    try {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const unixTimestamp = Math.floor(today.getTime());
+        let { apiKey, apiSecret, testnet } = readApiCredentials(); // Ensure readApiCredentials() is properly error-handled.
+        const currentUnixEpochTime = Math.floor(Date.now() / 1000) + 60;
+        let URL = testnet === false ? PUBLIC_API_URL : TESTNET_API_URL;
+        let api = `${URL}/api-data/g-futures/trades?currency=USDT&start=${unixTimestamp}&limit=200`
 
-    const sigdata = `/api-data/g-futures/tradessymbol=${pair}&start=${unixTimestamp}&limit=200` + currentUnixEpochTime;
-    const signature = CryptoJS.HmacSHA256(sigdata, apiSecret).toString();
-    const data = await axios.get(api, {
-        headers: {
-            'x-phemex-access-token': apiKey,
-            'x-phemex-request-expiry': currentUnixEpochTime,
-            'x-phemex-request-signature': signature
+        const sigdata = `/api-data/g-futures/tradescurrency=USDT&start=${unixTimestamp}&limit=200` + currentUnixEpochTime;
+        const signature = CryptoJS.HmacSHA256(sigdata, apiSecret).toString();
+
+        // Make the GET request
+        const response = await axios.get(api, {
+            headers: {
+                'x-phemex-access-token': apiKey,
+                'x-phemex-request-expiry': currentUnixEpochTime,
+                'x-phemex-request-signature': signature
+            }
+        });
+
+        // Check if the required data is present
+        if (response.data && response.data.data && response.data.data.rows) {
+            res.json(response.data.data.rows);
+        } else {
+            // Handle the case where the data structure is not as expected
+            throw new Error('Unexpected response structure');
         }
-    });
-    res.json(data.data.data.rows);
+    } catch (error) {
+        // Log the error
+        console.error(`Failed to fetch trades for today:`, error);
 
-})
+        // Respond with an error message
+        res.status(500).json({ error: 'An error occurred while fetching trades for today.' });
+    }
+});
+
 
 app.get('/orders-today', async (req, res) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const unixTimestamp = Math.floor(today.getTime());
-    let {
-        apiKey,
-        apiSecret,
-        pair,
-        testnet
-    } = readApiCredentials();
-    let URL = testnet === false ? PUBLIC_API_URL : TESTNET_API_URL;
-    let api = URL + `/api-data/g-futures/orders?symbol=${pair}&start=${unixTimestamp}&limit=200`
-    const currentUnixEpochTime = Math.floor(Date.now() / 1000) + 60;
-    const sigdata = `/api-data/g-futures/orderssymbol=${pair}&start=${unixTimestamp}&limit=200` + currentUnixEpochTime;
-    const signature = CryptoJS.HmacSHA256(sigdata, apiSecret).toString();
-    const data = await axios.get(api, {
-        headers: {
-            'x-phemex-access-token': apiKey,
-            'x-phemex-request-expiry': currentUnixEpochTime,
-            'x-phemex-request-signature': signature
-        }
-    });
-    res.json(data.data);
+    try {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const unixTimestamp = Math.floor(today.getTime());
+        let { apiKey, apiSecret, testnet } = readApiCredentials();  // Ensure this function is properly error-handled.
+        let URL = testnet === false ? PUBLIC_API_URL : TESTNET_API_URL;
+        let api = `${URL}/api-data/g-futures/orders?currency=USDT&start=${unixTimestamp}&limit=200`;
+        const currentUnixEpochTime = Math.floor(Date.now() / 1000) + 60;
+        const sigdata = `/api-data/g-futures/orderscurrency=USDT&start=${unixTimestamp}&limit=200` + currentUnixEpochTime;
+        const signature = CryptoJS.HmacSHA256(sigdata, apiSecret).toString();
 
-})
+        // Make the GET request
+        const response = await axios.get(api, {
+            headers: {
+                'x-phemex-access-token': apiKey,
+                'x-phemex-request-expiry': currentUnixEpochTime,
+                'x-phemex-request-signature': signature
+            }
+        });
+
+        // Check if the required data is present
+        if (response.data) {
+            res.json(response.data);
+        } else {
+            // Handle the case where the data structure is not as expected
+            throw new Error('Unexpected response structure');
+        }
+    } catch (error) {
+        // Log the error
+        console.error(`Failed to fetch orders for today:`, error);
+
+        // Respond with an error message
+        res.status(500).json({ error: 'An error occurred while fetching orders for today.' });
+    }
+});
 
 app.get('/pnl-today', async (req, res) => {
     const { sidee, posSidee } = await getLastTradeDirection();
