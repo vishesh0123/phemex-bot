@@ -7,6 +7,7 @@ import path from 'path';
 import cryptoRandomString from 'crypto-random-string'
 import axios from 'axios';
 import CryptoJS from 'crypto-js';
+import axiosRetry from 'axios-retry';
 
 const app = express();
 app.use(express.text());
@@ -18,6 +19,17 @@ const io = new SocketIOServer(httpServer, {
         allowedHeaders: ["my-custom-header"],
         credentials: true
     }
+});
+
+axiosRetry(axios, {
+    retries: 3, // Number of retry attempts
+    retryDelay: (retryCount) => {
+        return retryCount * 2000; // Time between retries increases with the retry count
+    },
+    retryCondition: (error) => {
+        // Retry on network errors or if the response status code is 503 (Service Unavailable)
+        return axiosRetry.isNetworkOrIdempotentRequestError(error) || error.response.status === 503;
+    },
 });
 
 // Configuration for public and testnet
@@ -329,9 +341,9 @@ const placeTrailingSl = async (symbol, qty, direction) => {
     const clOrdID = cryptoRandomString({ length: 40 });
     const closeOnTrigger = true;
     const currentPrice = parseFloat(await getCurrentPrice(symbol).catch(err => { throw new Error(`Failed to fetch current price: ${err.message}`); }));
-    const stopPxRp = currentPrice - (currentPrice * parseFloat(trailingStopLoss) / 100);
+    const stopPxRp = direction === 'Long' ? currentPrice - (currentPrice * parseFloat(trailingStopLoss) / 100) : currentPrice + (currentPrice * parseFloat(trailingStopLoss) / 100);
     const ordType = 'Stop';
-    const orderQtyRq = qty;
+    // const orderQtyRq = qty;
     let pegOffsetProportionRr = parseFloat(trailingStopLoss) / 100;
     let pegPriceType = 'TrailingStopByProportionPeg';
     const posSide = direction;
@@ -410,6 +422,31 @@ const setLeverage = async (symbol) => {
     }
 };
 
+const cancleLimitOrder = async (id, pair, posSide) => {
+
+    // Attempt to read the API credentials
+    let { apiKey, apiSecret, testnet } = readApiCredentials(); // Ensure readApiCredentials() is properly error-handled.
+    let URL = testnet === false ? PUBLIC_API_URL : TESTNET_API_URL;
+    let apiEndPoint1 = URL + `/g-orders/cancel?clOrdID=${id}&symbol=${pair}&posSide=${posSide}`;
+    const currentUnixEpochTime = Math.floor(Date.now() / 1000) + 60;
+    const sigdata1 = `/g-orders/cancelclOrdID=${id}&symbol=${pair}&posSide=${posSide}` + currentUnixEpochTime;
+    const signature1 = CryptoJS.HmacSHA256(sigdata1, apiSecret).toString();
+
+
+    // Make two delete requests in parallel
+    const [response1] = await Promise.all([
+        axios.delete(apiEndPoint1, {
+            headers: {
+                'x-phemex-access-token': apiKey,
+                'x-phemex-request-expiry': currentUnixEpochTime,
+                'x-phemex-request-signature': signature1
+            }
+        }),
+    ]);
+
+
+}
+
 app.post('/trade', async (req, res) => {
     try {
 
@@ -457,7 +494,8 @@ app.post('/trade', async (req, res) => {
                 limitDistance,
                 maxUSDTperTrade,
                 testnet,
-                trailingStopLoss
+                trailingStopLoss,
+                canclelimitOrderTime
             } = readApiCredentials();
 
             takeProfit = parseFloat(takeProfit);
@@ -531,6 +569,11 @@ app.post('/trade', async (req, res) => {
                     await placeTrailingSl(pair, orderQtyRq, signal);
                 }
                 res.json(data.data);
+                if (orderType === 3) {
+                    setTimeout(async () => {
+                        await cancleLimitOrder(clOrdID, pair, posSide);
+                    }, Number(canclelimitOrderTime) * 1000);
+                }
             } catch (networkError) {
                 console.error(`Network error: ${networkError.message}`);
 
@@ -621,7 +664,6 @@ app.get('/orders-today', async (req, res) => {
 });
 
 app.get('/pnl-today', async (req, res) => {
-    const { sidee, posSidee } = await getLastTradeDirection();
     const response = await axios.get('http://localhost:8080/trades-today');
     let pnl = 0;
     let amt = 0;

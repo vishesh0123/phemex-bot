@@ -18,8 +18,12 @@ function HomePage({ ml, mt }) {
     const [server, setServer] = useState(true);
 
     const getPNL = async () => {
-        const data = await axios.get('http://127.0.0.1:8080/pnl-today');
-        setpnl(data.data.pnl);
+        try {
+            const data = await axios.get('http://127.0.0.1:8080/pnl-today');
+            setpnl(data.data.pnl);
+        } catch {
+            setServer(false);
+        }
 
     }
 
@@ -90,11 +94,11 @@ function HomePage({ ml, mt }) {
                         {{
                             'fontSize': '20px',
                             'color': parseFloat(pnl) > 0 ? 'green' : 'red',
-                            fontWeight:'bold'
+                            fontWeight: 'bold'
                         }}
                     >PNL : {pnl.toString().slice(0, 6) + ` USDT`}</Typography>
                     <Typography sx={{ 'fontWeight': 'bold' }}>USDT : {balance} &nbsp; USED : {usedBalance}</Typography>
-                    <Typography>SERVER STATUS: LIVE  &nbsp;</Typography>
+                    <Typography sx={{ 'fontWeight': 'bold', color: server ? 'green' : 'red' }}>SERVER STATUS: {server ? 'Live' : 'Not Working'}  &nbsp;</Typography>
 
 
                 </Box>
