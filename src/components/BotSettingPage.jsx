@@ -15,40 +15,6 @@ function BotSettingPage() {
     const [posMode, setPosMode] = useState(Number(file.posMode))
     const [testnet, setTestnet] = useState(file.testnet);
 
-    const setLeverage = async (merged) => {
-        let apiEndPoint = testnet ?
-            BotConfig.proxy.testnet.rest + "/g-positions/leverage" :
-            BotConfig.proxy.public.rest + "/g-positions/leverage";
-        const symbol = merged.pair
-        let leverageRr = Number(merged.leverage)
-        if (leverageMode === 1) {
-            leverageRr = (leverageRr * -1)
-        }
-        let signature;
-        const currentUnixEpochTime = Math.floor(Date.now() / 1000) + 60;
-        if (posMode === 1) {
-            apiEndPoint = apiEndPoint + `?symbol=${symbol}&leverageRr=${leverageRr}`
-            const sigData = '/g-positions/leverage' + `symbol=${symbol}&leverageRr=${leverageRr}` + currentUnixEpochTime
-            console.log(sigData);
-            signature = CryptoJS.HmacSHA256(sigData, merged.apiSecret).toString();
-
-
-        } else {
-            apiEndPoint = apiEndPoint + `?symbol=${symbol}&longLeverageRr=${leverageRr}&shortLeverageRr=${leverageRr}`
-            const sigData = '/g-positions/leverage' + `symbol=${symbol}&longLeverageRr=${leverageRr}&shortLeverageRr=${leverageRr}` + currentUnixEpochTime
-            console.log(sigData);
-            signature = CryptoJS.HmacSHA256(sigData, merged.apiSecret).toString();
-        }
-
-        const data = await axios.put(apiEndPoint, null, {
-            headers: {
-                'x-phemex-access-token': file.apiKey,
-                'x-phemex-request-expiry': currentUnixEpochTime,
-                'x-phemex-request-signature': signature
-            }
-        })
-
-    }
 
     const saveSettingInconfig = async () => {
         const merged = {
@@ -156,7 +122,6 @@ function BotSettingPage() {
 
                             </Select>
                         </FormControl>
-                        <KeyInput text='limitPrice' type='text' setting={setting} saveSetting={saveSetting} value={file.limitPrice} />
                         <KeyInput text='limitDistance' type='text' setting={setting} saveSetting={saveSetting} value={file.limitDistance} />
                         <KeyInput text='dailyProfitThreshold' setting={setting} type='text' saveSetting={saveSetting} value={file.dailyProfitThreshold} />
                         <KeyInput text='dailyLossThreshold' setting={setting} type='text' saveSetting={saveSetting} value={file.dailyLossThreshold} />

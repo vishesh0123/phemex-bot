@@ -10,14 +10,14 @@ import axios from 'axios'
 import CryptoJS from 'crypto-js';
 import file from '../../settings.json';
 
-function PlaceOrderPerps({ pairs, selectedPair, testMode }) {
+function PlaceOrderPerps({ pairs, selectedPair }) {
     const [orderType, setOrderType] = useState('Buy')
     const [orderSubType, setOrderSubType] = useState('Market')
     const [slSubType, setSlSubType] = useState('Market')
     const [orderInfo, setOrderInfo] = useState({})
 
     const getCurrentPrice = async (symbol) => {
-        let apiEndPoint = testMode ?
+        let apiEndPoint = file.testnet ?
             BotConfig.proxy.testnet.rest + `/md/v2/ticker/24hr?symbol=${symbol}` :
             BotConfig.proxy.public.rest + `/md/v2/ticker/24hr?symbol=${symbol}`;
 
@@ -27,7 +27,7 @@ function PlaceOrderPerps({ pairs, selectedPair, testMode }) {
     }
 
     const placeOrder = async () => {
-        let apiEndPoint = testMode ?
+        let apiEndPoint = file.testnet ?
             BotConfig.proxy.testnet.rest + "/g-orders/create" :
             BotConfig.proxy.public.rest + "/g-orders/create";
         const clOrdID = cryptoRandomString({ length: 40 })
@@ -60,36 +60,36 @@ function PlaceOrderPerps({ pairs, selectedPair, testMode }) {
 
         }
         const priceRp = orderInfo['Limit Price']
-        const side = orderType
+        const side = orderType === 'Buy' ? 'Buy' : 'Sell';
         const posSide = orderType === 'Buy' ? 'Long' : 'Short'
         let timeInForce = (orderSubType === 'Market' || (orderSubType === 'Conditional' && slSubType === 'Market')) ? 'ImmediateOrCancel' : 'GoodTillCancel'
         apiEndPoint = apiEndPoint + `?clOrdID=${clOrdID}&symbol=${symbol}&reduceOnly=${reduceOnly}&closeOnTrigger=${closeOnTrigger}&orderQtyRq=${orderQtyRq}&ordType=${ordType}&side=${side}&posSide=${posSide}&timeInForce=${timeInForce}`
         const currentUnixEpochTime = Math.floor(Date.now() / 1000) + 60;
         const apiKey = file.apiKey;
         const apiSecret = file.apiSecret;
-        const add = testMode ? '/moc' : ''
         let signature;
         if (orderSubType === 'Market') {
-            const sigData = add + '/g-orders/create' + `clOrdID=${clOrdID}&symbol=${symbol}&reduceOnly=${reduceOnly}&closeOnTrigger=${closeOnTrigger}&orderQtyRq=${orderQtyRq}&ordType=${ordType}&side=${side}&posSide=${posSide}&timeInForce=${timeInForce}` + currentUnixEpochTime;
+            const sigData = '/g-orders/create' + `clOrdID=${clOrdID}&symbol=${symbol}&reduceOnly=${reduceOnly}&closeOnTrigger=${closeOnTrigger}&orderQtyRq=${orderQtyRq}&ordType=${ordType}&side=${side}&posSide=${posSide}&timeInForce=${timeInForce}` + currentUnixEpochTime;
             signature = CryptoJS.HmacSHA256(sigData, apiSecret).toString();
 
         } else if (orderSubType === 'Limit') {
             apiEndPoint = apiEndPoint + `&priceRp=${priceRp}`
-            const sigData = add + '/g-orders/create' + `clOrdID=${clOrdID}&symbol=${symbol}&reduceOnly=${reduceOnly}&closeOnTrigger=${closeOnTrigger}&orderQtyRq=${orderQtyRq}&ordType=${ordType}&side=${side}&posSide=${posSide}&timeInForce=${timeInForce}&priceRp=${priceRp}` + currentUnixEpochTime;
+            const sigData = '/g-orders/create' + `clOrdID=${clOrdID}&symbol=${symbol}&reduceOnly=${reduceOnly}&closeOnTrigger=${closeOnTrigger}&orderQtyRq=${orderQtyRq}&ordType=${ordType}&side=${side}&posSide=${posSide}&timeInForce=${timeInForce}&priceRp=${priceRp}` + currentUnixEpochTime;
             signature = CryptoJS.HmacSHA256(sigData, apiSecret).toString();
 
         } else {
             if (slSubType === 'Market') {
-                apiEndPoint = apiEndPoint + `&stopPxRp=${stopPxRp}`
-                const sigData = add + '/g-orders/create' + `clOrdID=${clOrdID}&symbol=${symbol}&reduceOnly=${reduceOnly}&closeOnTrigger=${closeOnTrigger}&orderQtyRq=${orderQtyRq}&ordType=${ordType}&side=${side}&posSide=${posSide}&timeInForce=${timeInForce}&stopPxRp=${stopPxRp}` + currentUnixEpochTime;
+                apiEndPoint = apiEndPoint + `&stopPxRp=${stopPxRp}&triggerType=ByLastPrice`
+                const sigData = '/g-orders/create' + `clOrdID=${clOrdID}&symbol=${symbol}&reduceOnly=${reduceOnly}&closeOnTrigger=${closeOnTrigger}&orderQtyRq=${orderQtyRq}&ordType=${ordType}&side=${side}&posSide=${posSide}&timeInForce=${timeInForce}&stopPxRp=${stopPxRp}&triggerType=ByLastPrice` + currentUnixEpochTime;
                 signature = CryptoJS.HmacSHA256(sigData, apiSecret).toString();
             } else {
-                apiEndPoint = apiEndPoint + `&stopPxRp=${stopPxRp}&priceRp=${priceRp}`
-                const sigData = add + '/g-orders/create' + `clOrdID=${clOrdID}&symbol=${symbol}&reduceOnly=${reduceOnly}&closeOnTrigger=${closeOnTrigger}&orderQtyRq=${orderQtyRq}&ordType=${ordType}&side=${side}&posSide=${posSide}&timeInForce=${timeInForce}&stopPxRp=${stopPxRp}&priceRp=${priceRp}` + currentUnixEpochTime;
+                apiEndPoint = apiEndPoint + `&stopPxRp=${stopPxRp}&priceRp=${priceRp}&triggerType=ByLastPrice`
+                const sigData = '/g-orders/create' + `clOrdID=${clOrdID}&symbol=${symbol}&reduceOnly=${reduceOnly}&closeOnTrigger=${closeOnTrigger}&orderQtyRq=${orderQtyRq}&ordType=${ordType}&side=${side}&posSide=${posSide}&timeInForce=${timeInForce}&stopPxRp=${stopPxRp}&priceRp=${priceRp}&triggerType=ByLastPrice` + currentUnixEpochTime;
                 signature = CryptoJS.HmacSHA256(sigData, apiSecret).toString();
 
             }
         }
+        console.log(apiEndPoint);
 
         const data = await axios.put(apiEndPoint, null, {
             headers: {
@@ -111,7 +111,7 @@ function PlaceOrderPerps({ pairs, selectedPair, testMode }) {
         <Box
             width='450px'
             border='1px solid white'
-            height='300px'
+            height='280px'
             display='flex'
             flexDirection='column'
 

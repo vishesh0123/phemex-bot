@@ -1,17 +1,21 @@
 import { Box, Typography } from '@mui/material'
 import React, { useEffect, useState } from 'react'
-import KeyInput from './KeyInput'
 import PairsMenu from './PairsMenu'
-import SwitchMode from './SwitchMode'
 import TradingMode from './TradingMode'
 import PlaceOrderPerps from './PlaceOrderPerps'
 import BotSettingPage from './BotSettingPage'
 import axios from 'axios'
+import file from '../../settings.json';
+import BotConfig from '../../bot.config';
+import CryptoJS from 'crypto-js';
 
 function HomePage({ ml, mt }) {
     const [pairs, setPairs] = useState({})
     const [selectedPair, setSelectedPair] = useState('')
     const [pnl, setpnl] = useState(0);
+    const [balance, setBalance] = useState('');
+    const [usedBalance, setUsedBalance] = useState('');
+    const [server, setServer] = useState(true);
 
     const getPNL = async () => {
         const data = await axios.get('http://127.0.0.1:8080/pnl-today');
@@ -19,8 +23,31 @@ function HomePage({ ml, mt }) {
 
     }
 
+    const getUSDTBalance = async () => {
+        let apiEndPoint = file.testnet ?
+            BotConfig.proxy.testnet.rest + "/g-accounts/positions?currency=USDT" :
+            BotConfig.proxy.public.rest + "/g-accounts/positions?currency=USDT";
+        const currentUnixEpochTime = Math.floor(Date.now() / 1000) + 60;
+        const apiKey = file.apiKey;
+        const apiSecret = file.apiSecret;
+
+        const sigData = "/g-accounts/positionscurrency=USDT" + currentUnixEpochTime;
+        const signature = CryptoJS.HmacSHA256(sigData, apiSecret).toString();
+
+        const data = await axios.get(apiEndPoint, {
+            headers: {
+                'x-phemex-access-token': apiKey,
+                'x-phemex-request-expiry': currentUnixEpochTime,
+                'x-phemex-request-signature': signature
+            }
+        })
+        setBalance(data.data.data.account.accountBalanceRv);
+        setUsedBalance(data.data.data.account.totalUsedBalanceRv);
+    }
+
     useEffect(() => {
         getPNL();
+        getUSDTBalance();
         const intervalId = setInterval(getPNL, 10000);
         return () => clearInterval(intervalId);
 
@@ -61,10 +88,14 @@ function HomePage({ ml, mt }) {
                     <Typography
                         sx=
                         {{
-                            'fontSize': '40px',
-                            'color': parseFloat(pnl) > 0 ? 'green' : 'red'
+                            'fontSize': '20px',
+                            'color': parseFloat(pnl) > 0 ? 'green' : 'red',
+                            fontWeight:'bold'
                         }}
                     >PNL : {pnl.toString().slice(0, 6) + ` USDT`}</Typography>
+                    <Typography sx={{ 'fontWeight': 'bold' }}>USDT : {balance} &nbsp; USED : {usedBalance}</Typography>
+                    <Typography>SERVER STATUS: LIVE  &nbsp;</Typography>
+
 
                 </Box>
 
