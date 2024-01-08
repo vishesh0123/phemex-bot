@@ -3,16 +3,16 @@
   "orderType": 1,
   "marginMode": 2,
   "posMode": 2,
-  "apiKey": "e9149b6c-2e48-48c9-8799-36a018269104",
-  "apiSecret": "_O0ETjZOTVBSNGZ3ena2ZTW078bGrd8L36zEn8BHhiMxMzFhMjNiMy02ODFhLTQwOTgtYTNjMi1hNjIyZjc1OTAxODg",
+  "apiKey": "e30110f6-c866-47e9-a6eb-1179edbdd562",
+  "apiSecret": "B-nIAxurgM20oCBGsIaYAYS5601SuBf8u45u5E3cNWw5NjYxMmEwMC1jMWFjLTRkMTUtYjNiMi0zNTM2ZDQ3MjJjNTc",
   "leverage": "6",
-  "takeProfit": "2",
-  "stopLoss": "2",
+  "takeProfit": "1",
+  "stopLoss": "1",
   "trailingStopLoss": "0",
   "limitDistance": "2",
   "dailyProfitThreshold": "10",
   "dailyLossThreshold": "5",
   "maxUSDTperTrade": "50",
   "canclelimitOrderTime": "10",
-  "testnet": false
+  "testnet": true
 }

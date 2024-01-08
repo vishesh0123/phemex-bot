@@ -115,13 +115,14 @@ app.post('/save-config', express.json(), (req, res) => {
 let cacheData = {
     date: new Date('2024-01-01').toDateString(),
     logsCounter: 0,
-    tradinghalt: false
+    tradinghalt: false,
+    testnet: false
 };
 
 const runEveryMinute = async () => {
     try {
         const today = new Date().toDateString();
-        let { discordWebhook, dailyProfitThreshold, dailyLossThreshold } = readApiCredentials();
+        let { discordWebhook, dailyProfitThreshold, dailyLossThreshold, testnet } = readApiCredentials();
 
         // Handling errors for HTTP request to get trades of today
         const response = await axios.get('http://localhost:8080/trades-today').catch(err => {
@@ -130,6 +131,11 @@ const runEveryMinute = async () => {
 
         if (today !== cacheData.date) {
             cacheData.date = today;
+            cacheData.logsCounter = response.data.length;
+            cacheData.testnet = testnet;
+        }
+
+        if (cacheData.testnet !== testnet) {
             cacheData.logsCounter = response.data.length;
         }
 
@@ -664,19 +670,41 @@ app.get('/orders-today', async (req, res) => {
 });
 
 app.get('/pnl-today', async (req, res) => {
-    const response = await axios.get('http://localhost:8080/trades-today');
-    let pnl = 0;
-    let amt = 0;
+    try {
+        // Attempt to make the HTTP request
+        const response = await axios.get('http://localhost:8080/trades-today');
 
-    response.data.forEach((trade) => {
+        // Verify the response data structure
+        if (!response.data || !Array.isArray(response.data)) {
+            throw new Error('Unexpected response structure from trades-today API');
+        }
 
-        pnl = pnl + parseFloat(trade.closedPnlRv);
-        amt = amt + parseFloat(trade.execFeeRv);
-    })
+        let pnl = 0;
+        let amt = 0;
 
-    res.json({ "pnl": pnl - amt });
+        response.data.forEach((trade) => {
+            const closedPnlRv = parseFloat(trade.closedPnlRv);
+            const execFeeRv = parseFloat(trade.execFeeRv);
 
-})
+            // Check for parsing errors
+            if (isNaN(closedPnlRv) || isNaN(execFeeRv)) {
+                throw new Error('Invalid trade data encountered');
+            }
+
+            pnl += closedPnlRv;
+            amt += execFeeRv;
+        });
+
+        res.json({ "pnl": pnl - amt });
+    } catch (error) {
+        // Log the error
+        console.error(`Failed to calculate PnL for today: ${error.message}`);
+
+        // Respond with an error message
+        res.status(500).json({ error: 'Internal Server Error', message: 'An error occurred while calculating PnL for today.' });
+    }
+});
+
 
 httpServer.listen(PORT, () => {
     console.log(`Server listening on port ${PORT}`);
