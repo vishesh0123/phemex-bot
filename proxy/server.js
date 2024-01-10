@@ -606,6 +606,9 @@ app.post('/trade', async (req, res) => {
             }
         }
     } catch (error) {
+        let {
+            discordWebhook
+        } = readApiCredentials();
         const payload = {
             content: "Trade Could not be processed due to .." + error.message
         };
