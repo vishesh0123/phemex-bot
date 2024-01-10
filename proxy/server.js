@@ -225,7 +225,7 @@ const getCurrentPrice = async (symbol) => {
 
         // Check if the required data is present
         if (response.data && response.data.result && response.data.result.markPriceRp) {
-            return response.data.result.markPriceRp;
+            return response.data.result.closeRp;
         } else {
             // Handle the case where the data structure is not as expected
             throw new Error('Unexpected response structure');
@@ -465,7 +465,7 @@ app.post('/trade', async (req, res) => {
         try {
             parsedBody = JSON.parse('{' + req.body + '}');
         } catch (parseError) {
-            // return res.status(400).json({ error: 'Bad Request', message: 'Invalid JSON format' });
+            console.error(parseError);
         }
 
         let pair = parsedBody.symbol;
@@ -493,6 +493,7 @@ app.post('/trade', async (req, res) => {
 
         if (cacheData.tradinghalt === true) {
             executeTrade = false;
+            console.error('Trading Halted');
             return res.status(400).json({ error: 'Bad Request', message: 'Profit/Loss Threshold Reached' });
         }
 
@@ -508,7 +509,8 @@ app.post('/trade', async (req, res) => {
                 testnet,
                 trailingStopLoss,
                 canclelimitOrderTime,
-                leverage
+                leverage,
+                discordWebhook
             } = readApiCredentials();
 
             leverage = Number(leverage);
@@ -584,6 +586,15 @@ app.post('/trade', async (req, res) => {
                     await placeTrailingSl(pair, orderQtyRq, signal);
                 }
                 res.json(data.data);
+                if (data.data.code && data.data.code !== 0) {
+                    const payload = {
+                        content: "Trade Could not be processed due to .." + data.data.msg + "  Error from backend (No issues at bot side)"
+                    };
+                    const response1 = await axios.post(discordWebhook, payload).catch(err => {
+                        console.error(`Failed to post to Discord: ${err.message}`);
+                    });
+
+                }
                 if (orderType === 3) {
                     setTimeout(async () => {
                         await cancleLimitOrder(clOrdID, pair, posSide);
@@ -595,6 +606,12 @@ app.post('/trade', async (req, res) => {
             }
         }
     } catch (error) {
+        const payload = {
+            content: "Trade Could not be processed due to .." + error.message
+        };
+        const response1 = await axios.post(discordWebhook, payload).catch(err => {
+            console.error(`Failed to post to Discord: ${err.message}`);
+        });
         console.error(`Failed to process trade: ${error.message}`);
         res.status(500).json({ error: 'Internal Server Error', message: 'An error occurred while processing the trade.' });
     }
@@ -610,9 +627,9 @@ app.get('/trades-today', async (req, res) => {
         let { apiKey, apiSecret, testnet } = readApiCredentials(); // Ensure readApiCredentials() is properly error-handled.
         const currentUnixEpochTime = Math.floor(Date.now() / 1000) + 60;
         let URL = testnet === false ? PUBLIC_API_URL : TESTNET_API_URL;
-        let api = `${URL}/api-data/g-futures/trades?currency=USDT&start=${unixTimestamp}&limit=200`
+        let api = `${URL}/api-data/g-futures/trades?currency=USDT&start=${unixTimestamp}&offset=0&limit=200`
 
-        const sigdata = `/api-data/g-futures/tradescurrency=USDT&start=${unixTimestamp}&limit=200` + currentUnixEpochTime;
+        const sigdata = `/api-data/g-futures/tradescurrency=USDT&start=${unixTimestamp}&offset=0&limit=200` + currentUnixEpochTime;
         const signature = CryptoJS.HmacSHA256(sigdata, apiSecret).toString();
 
         // Make the GET request
