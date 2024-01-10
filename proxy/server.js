@@ -527,7 +527,7 @@ app.post('/trade', async (req, res) => {
             const closeOnTrigger = false;
             const ordType = orderType === 1 ? 'Market' : 'Limit'
             let orderQtyRq = maxUSDTperTrade * leverage / currentPrice;
-            let priceRp = signal === 'Long' ? currentPrice + 500 : currentPrice - 500;
+            let priceRp = signal === 'Long' ? currentPrice + 1 : currentPrice - 1;
             priceRp = orderType !== 1 ? priceRp : null;
 
             let side = signal === 'Long' ? 'Buy' : 'Sell';
