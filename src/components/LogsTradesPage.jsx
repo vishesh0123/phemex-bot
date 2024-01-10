@@ -54,16 +54,16 @@ function LogsTradesPage() {
                     <TableBody>
                         {tradeData.map((trade, index) => (
                             <TableRow key={index} sx={{ bgcolor: 'black' }}>
-                                <TableCell sx={{ color: trade.side === 'Buy' ? 'green' : 'red', fontWeight: 'bold' }}>{(new Date(trade.transactTimeNs / 1e6)).toLocaleTimeString()}</TableCell>
-                                <TableCell sx={{ color: trade.side === 'Buy' ? 'green' : 'red', fontWeight: 'bold' }}>{trade.orderID.slice(0, 6) + `..`}</TableCell>
-                                <TableCell sx={{ color: trade.side === 'Buy' ? 'green' : 'red', fontWeight: 'bold' }}>{trade.symbol}</TableCell>
-                                <TableCell sx={{ color: trade.side === 'Buy' ? 'green' : 'red', fontWeight: 'bold' }}>{`${trade.side === 'Buy' ? 'Open' : 'Close'} ${trade.posSide}`}</TableCell>
-                                <TableCell sx={{ color: trade.side === 'Buy' ? 'green' : 'red', fontWeight: 'bold' }}>{trade.ordType}</TableCell>
-                                <TableCell sx={{ color: trade.side === 'Buy' ? 'green' : 'red', fontWeight: 'bold' }}>{trade.execPriceRp}</TableCell>
-                                <TableCell sx={{ color: trade.side === 'Buy' ? 'green' : 'red', fontWeight: 'bold' }}>{trade.orderQtyRq}</TableCell>
-                                <TableCell sx={{ color: trade.side === 'Buy' ? 'green' : 'red', fontWeight: 'bold' }}>{trade.execQtyRq}</TableCell>
-                                <TableCell sx={{ color: trade.side === 'Buy' ? 'green' : 'red', fontWeight: 'bold' }}>{trade.execStatus}</TableCell>
-                                <TableCell sx={{ color: trade.side === 'Buy' ? 'green' : 'red', fontWeight: 'bold' }}>{trade.closedPnlRv}</TableCell>
+                                <TableCell sx={{ color: ((trade.side === 'Buy' && trade.posSide === 'Long') || (trade.side === 'Sell' && trade.posSide === 'Short')) ? 'green' : 'red', fontWeight: 'bold' }}>{(new Date(trade.transactTimeNs / 1e6)).toLocaleTimeString()}</TableCell>
+                                <TableCell sx={{ color: ((trade.side === 'Buy' && trade.posSide === 'Long') || (trade.side === 'Sell' && trade.posSide === 'Short')) ? 'green' : 'red', fontWeight: 'bold' }}>{trade.orderID.slice(0, 6) + `..`}</TableCell>
+                                <TableCell sx={{ color: ((trade.side === 'Buy' && trade.posSide === 'Long') || (trade.side === 'Sell' && trade.posSide === 'Short')) ? 'green' : 'red', fontWeight: 'bold' }}>{trade.symbol}</TableCell>
+                                <TableCell sx={{ color: ((trade.side === 'Buy' && trade.posSide === 'Long') || (trade.side === 'Sell' && trade.posSide === 'Short')) ? 'green' : 'red', fontWeight: 'bold' }}>{`${((trade.side === 'Buy' && trade.posSide === 'Long') || (trade.side === 'Sell' && trade.posSide === 'Short')) ? 'Open' : 'Close'} ${trade.posSide}`}</TableCell>
+                                <TableCell sx={{ color: ((trade.side === 'Buy' && trade.posSide === 'Long') || (trade.side === 'Sell' && trade.posSide === 'Short')) ? 'green' : 'red', fontWeight: 'bold' }}>{trade.ordType}</TableCell>
+                                <TableCell sx={{ color: ((trade.side === 'Buy' && trade.posSide === 'Long') || (trade.side === 'Sell' && trade.posSide === 'Short')) ? 'green' : 'red', fontWeight: 'bold' }}>{trade.execPriceRp}</TableCell>
+                                <TableCell sx={{ color: ((trade.side === 'Buy' && trade.posSide === 'Long') || (trade.side === 'Sell' && trade.posSide === 'Short')) ? 'green' : 'red', fontWeight: 'bold' }}>{trade.orderQtyRq}</TableCell>
+                                <TableCell sx={{ color: ((trade.side === 'Buy' && trade.posSide === 'Long') || (trade.side === 'Sell' && trade.posSide === 'Short')) ? 'green' : 'red', fontWeight: 'bold' }}>{trade.execQtyRq}</TableCell>
+                                <TableCell sx={{ color: ((trade.side === 'Buy' && trade.posSide === 'Long') || (trade.side === 'Sell' && trade.posSide === 'Short')) ? 'green' : 'red', fontWeight: 'bold' }}>{trade.execStatus}</TableCell>
+                                <TableCell sx={{ color: ((trade.side === 'Buy' && trade.posSide === 'Long') || (trade.side === 'Sell' && trade.posSide === 'Short')) ? 'green' : 'red', fontWeight: 'bold' }} >{trade.closedPnlRv}</TableCell>
                             </TableRow>
                         ))}
                     </TableBody>

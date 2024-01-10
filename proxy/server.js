@@ -142,7 +142,7 @@ const runEveryMinute = async () => {
         if (response.data.length > cacheData.logsCounter) {
             const diff = response.data.length - cacheData.logsCounter;
             io.emit("NewSignal", "");
-            for (let i = cacheData.logsCounter; i < response.data.length; i++) {
+            for (let i = diff - 1; i >= 0; i--) {
                 const trade = response.data[i];
                 const payload = {
                     content: `OrderId=${trade.orderID}\nSymbol=${trade.symbol}\nExecPrice=${trade.execPriceRp}\nClosedPnl=${trade.closedPnlRv}\nExecuted Qty=${trade.execQtyRq}\nOrderType=${trade.ordType}\nPosSide=${trade.posSide}`,
@@ -242,25 +242,30 @@ const getCurrentPrice = async (symbol) => {
 
 const getLastTradeDirection = async (pair) => {
     const response = await axios.get('http://localhost:8080/trades-today');
-    let sidee = null;
-    let posSidee = null;
-    let qty = null;
-    let symbol = null;
-    let index = 0;
+    let sidee = 'Sell';
+    let posSidee = 'Long';
+    let qty = '0.01';
+    let symbol = pair;
+    let index = -1;
 
-    for (let i = 0; i < response.data.length; i++) {
-        if (response.data[i].symbol === pair) {
-            index = i;
-            break;
+    if (response.data && response.data.length > 0) {
+        for (let i = 0; i < response.data.length; i++) {
+            if (response.data[i].symbol === pair) {
+                index = i;
+                break;
+            }
+
         }
 
     }
 
+    if (index > -1) {
+        sidee = response.data[index].side
+        posSidee = response.data[index].posSide
+        qty = response.data[index].execQtyRq
+        symbol = response.data[index].symbol
 
-    sidee = response.data[index].side || sidee;
-    posSidee = response.data[index].posSide || posSidee;
-    qty = response.data[index].execQtyRq || qty;
-    symbol = response.data[index].symbol || symbol;
+    }
 
 
     return { sidee, posSidee, qty, symbol }
@@ -487,6 +492,7 @@ app.post('/trade', async (req, res) => {
         }
 
         if (cacheData.tradinghalt === true) {
+            executeTrade = false;
             return res.status(400).json({ error: 'Bad Request', message: 'Profit/Loss Threshold Reached' });
         }
 
@@ -501,9 +507,11 @@ app.post('/trade', async (req, res) => {
                 maxUSDTperTrade,
                 testnet,
                 trailingStopLoss,
-                canclelimitOrderTime
+                canclelimitOrderTime,
+                leverage
             } = readApiCredentials();
 
+            leverage = Number(leverage);
             takeProfit = parseFloat(takeProfit);
             stopLoss = parseFloat(stopLoss)
             limitDistance = parseFloat(limitDistance)
@@ -511,44 +519,45 @@ app.post('/trade', async (req, res) => {
             const URL = testnet === false ? PUBLIC_API_URL : TESTNET_API_URL;
             let apiEndPoint = URL + "/g-orders/create";
             const clOrdID = cryptoRandomString({ length: 40 })
+            const currentPrice = parseFloat(await getCurrentPrice(pair));
             const symbol = pair;
             const reduceOnly = false;
             const closeOnTrigger = false;
             const ordType = orderType === 1 ? 'Market' : 'Limit'
-            let orderQtyRq = maxUSDTperTrade / close;
-            let priceRp = signal === 'Long' ? close + 500 : close - 500;
+            let orderQtyRq = maxUSDTperTrade * leverage / currentPrice;
+            let priceRp = signal === 'Long' ? currentPrice + 500 : currentPrice - 500;
             priceRp = orderType !== 1 ? priceRp : null;
 
             let side = signal === 'Long' ? 'Buy' : 'Sell';
             const posSide = signal;
             const timeInForce = orderType === 1 ? 'ImmediateOrCancel' : 'GoodTillCancel';
 
-            let takeProfitRp = signal === 'Long' ? (close + (close * takeProfit / 100)) : (close - (close * takeProfit / 100));
-            let stopLossRp = signal === 'Long' ? (close - (close * stopLoss / 100)) : (close + (close * stopLoss / 100));
+            let takeProfitRp = signal === 'Long' ? (currentPrice + (currentPrice * takeProfit / (leverage * 100))) : (currentPrice - (currentPrice * takeProfit / (leverage * 100)));
+            let stopLossRp = signal === 'Long' ? (currentPrice - (currentPrice * stopLoss / (leverage * 100))) : (currentPrice + (currentPrice * stopLoss / (leverage * 100)));
 
             //limit distance
             priceRp = orderType === 3 ?
                 (
                     signal === 'Long' ?
-                        close - (close * limitDistance / 100) :
-                        close + (close * limitDistance / 100)
+                        currentPrice - (currentPrice * limitDistance / 100) :
+                        currentPrice + (currentPrice * limitDistance / 100)
                 ) :
                 priceRp;
             takeProfitRp = orderType === 3 ?
                 (
                     signal === 'Long' ?
-                        (priceRp + (priceRp * takeProfit / 100)) :
-                        (priceRp - (priceRp * takeProfit / 100))
+                        (priceRp + (priceRp * takeProfit / (leverage * 100))) :
+                        (priceRp - (priceRp * takeProfit / (leverage * 100)))
                 ) :
                 takeProfitRp;
             stopLossRp = orderType === 3 ?
                 (
                     signal === 'Long' ?
-                        (priceRp - (priceRp * stopLoss / 100)) :
-                        (priceRp + (priceRp * stopLoss / 100))
+                        (priceRp - (priceRp * stopLoss / (leverage * 100))) :
+                        (priceRp + (priceRp * stopLoss / (leverage * 100)))
                 ) :
                 stopLossRp;
-            orderQtyRq = orderType === 3 ? (maxUSDTperTrade / close) : orderQtyRq;
+            orderQtyRq = orderType === 3 ? (maxUSDTperTrade / priceRp) : orderQtyRq;
 
             const currentUnixEpochTime = Math.floor(Date.now() / 1000) + 60;
             let signature;

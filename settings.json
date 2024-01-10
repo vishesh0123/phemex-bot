@@ -6,13 +6,13 @@
   "apiKey": "e30110f6-c866-47e9-a6eb-1179edbdd562",
   "apiSecret": "B-nIAxurgM20oCBGsIaYAYS5601SuBf8u45u5E3cNWw5NjYxMmEwMC1jMWFjLTRkMTUtYjNiMi0zNTM2ZDQ3MjJjNTc",
   "leverage": "6",
-  "takeProfit": "1",
-  "stopLoss": "1",
+  "takeProfit": "10",
+  "stopLoss": "10",
   "trailingStopLoss": "0",
   "limitDistance": "2",
   "dailyProfitThreshold": "10",
   "dailyLossThreshold": "5",
-  "maxUSDTperTrade": "50",
+  "maxUSDTperTrade": "5",
   "canclelimitOrderTime": "10",
   "testnet": true
 }
