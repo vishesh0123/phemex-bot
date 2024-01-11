@@ -262,7 +262,7 @@ const getLastTradeDirection = async (pair) => {
     if (index > -1) {
         sidee = response.data[index].side
         posSidee = response.data[index].posSide
-        qty = response.data[index].execQtyRq
+        qty = response.data[index].orderQtyRq
         symbol = response.data[index].symbol
 
     }
@@ -391,6 +391,7 @@ const setLeverage = async (symbol) => {
             apiKey,
             apiSecret
         } = readApiCredentials();  // Ensure readApiCredentials() is properly error-handled.
+        posMode = 2;
 
         const URL = testnet === false ? PUBLIC_API_URL : TESTNET_API_URL;
         let apiEndPoint = `${URL}/g-positions/leverage`;
@@ -473,7 +474,7 @@ app.post('/trade', async (req, res) => {
             pair = pair + 'T';
 
         }
-        const close = parseFloat(parsedBody.price);
+        // const close = parseFloat(parsedBody.price);
         const signal = parsedBody.direction === '{{long}}' ? 'Long' : 'Short';
         await setLeverage(pair);
 
@@ -527,7 +528,38 @@ app.post('/trade', async (req, res) => {
             const closeOnTrigger = false;
             const ordType = orderType === 1 ? 'Market' : 'Limit'
             let orderQtyRq = maxUSDTperTrade * leverage / currentPrice;
-            let priceRp = signal === 'Long' ? currentPrice + 1 : currentPrice - 1;
+            let factor = 0.00000001;
+            if (currentPrice >= 0.00001) {
+                factor = 0.0000001;
+            }
+            if (currentPrice >= 0.0001) {
+                factor = 0.000001;
+            }
+            if (currentPrice >= 0.001) {
+                factor = 0.00001;
+            }
+            if (currentPrice >= 0.01) {
+                factor = 0.0001;
+            }
+            if (currentPrice >= 0.1) {
+                factor = 0.001;
+            }
+            if (currentPrice >= 1) {
+                factor = 0.01
+            }
+            if (currentPrice >= 10) {
+                factor = 0.1
+            }
+            if (currentPrice >= 100) {
+                factor = 1
+            }
+            if (currentPrice >= 1000) {
+                factor = 10
+            }
+            if (currentPrice >= 10000) {
+                factor = 20
+            }
+            let priceRp = signal === 'Long' ? currentPrice + factor : currentPrice - factor;
             priceRp = orderType !== 1 ? priceRp : null;
 
             let side = signal === 'Long' ? 'Buy' : 'Sell';
@@ -575,6 +607,7 @@ app.post('/trade', async (req, res) => {
             }
 
             try {
+                console.log(apiEndPoint);
                 const data = await axios.put(apiEndPoint, null, {
                     headers: {
                         'x-phemex-access-token': apiKey,
