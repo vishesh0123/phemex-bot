@@ -162,9 +162,11 @@ const runEveryMinute = async () => {
         });
         const pnl = pnlResponse.data;
 
-        if ((pnl >= Number(dailyProfitThreshold)) || (pnl <= (Number(dailyLossThreshold) * -1))) {
+        if ((pnl.pnl >= Number(dailyProfitThreshold)) || (pnl.pnl <= (Number(dailyLossThreshold) * -1))) {
             cacheData.tradinghalt = true;
-            closeLastPosition();
+            // closeLastPosition();
+        } else {
+            cacheData.tradinghalt = false;
         }
     } catch (error) {
         console.error(`An error occurred: ${error.message}`);
@@ -607,7 +609,7 @@ app.post('/trade', async (req, res) => {
             }
 
             try {
-                console.log(apiEndPoint);
+                console.log(apiEndPoint + `leverage: ${leverage}X Current Price: ${currentPrice} StopLoss:${stopLoss} takeProfit:${takeProfit} OrderType:${orderType}`);
                 const data = await axios.put(apiEndPoint, null, {
                     headers: {
                         'x-phemex-access-token': apiKey,
