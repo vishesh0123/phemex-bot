@@ -243,54 +243,48 @@ const getCurrentPrice = async (symbol) => {
 };
 
 const getLastTradeDirection = async (pair) => {
-    const response = await axios.get('http://localhost:8080/trades-today');
+
+    let { apiKey, apiSecret, testnet } = readApiCredentials();
+    const currentUnixEpochTime = Math.floor(Date.now() / 1000) + 60;
+    let URL = testnet === false ? PUBLIC_API_URL : TESTNET_API_URL;
+    let api = `${URL}/api-data/g-futures/trades?symbol=${pair}&limit=1`
+
+    const sigdata = `/api-data/g-futures/tradessymbol=${pair}&limit=1` + currentUnixEpochTime;
+    const signature = CryptoJS.HmacSHA256(sigdata, apiSecret).toString();
+
+    let response = await axios.get(api, {
+        headers: {
+            'x-phemex-access-token': apiKey,
+            'x-phemex-request-expiry': currentUnixEpochTime,
+            'x-phemex-request-signature': signature
+        }
+    });
+    response = response.data;
+
     let sidee = 'Sell';
     let posSidee = 'Long';
     let qty = '0.01';
     let symbol = pair;
+    let index = -1;
+    console.log(response.data.rows);
 
-    let longopen = 0;
-    let longclose = 0;
-    let shortopen = 0;
-    let shortclose = 0;
+    if (response.data && response.data.rows && response.data.rows.length > 0) {
 
-    if (response.data && response.data.length > 0) {
-        for (let i = 0; i < response.data.length; i++) {
-            if (response.data[i].posSide === 'Long' && response.data[i].side === 'Buy' && response.data[i].symbol === pair) {
-                longopen = longopen + parseFloat(response.data[i].orderQtyRq)
-            }
-            if (response.data[i].posSide === 'Long' && response.data[i].side === 'Sell' && response.data[i].symbol === pair) {
-                longclose = longclose + parseFloat(response.data[i].orderQtyRq)
-            }
-            if (response.data[i].posSide === 'Short' && response.data[i].side === 'Sell' && response.data[i].symbol === pair) {
-                shortopen = shortopen + parseFloat(response.data[i].orderQtyRq)
-            }
-            if (response.data[i].posSide === 'Short' && response.data[i].side === 'Buy' && response.data[i].symbol === pair) {
-                shortclose = shortclose + parseFloat(response.data[i].orderQtyRq)
-            }
-
+        if (response.data.rows[0].symbol === pair) {
+            index = 0;
         }
+    }
+
+    if (index > -1) {
+        sidee = response.data.rows[index].side
+        posSidee = response.data.rows[index].posSide
+        qty = response.data.rows[index].orderQtyRq
+        symbol = response.data.rows[index].symbol
 
     }
 
-    if ((longclose - longopen === 0) && (shortclose - shortopen === 0)) {
-        return { sidee, posSidee, qty, symbol }
-    }
 
-    if (longclose - longopen !== 0) {
-        sidee = 'Buy';
-        posSidee = 'Long';
-        qty = Math.abs(longclose - longopen)
-        return { sidee, posSidee, qty, symbol }
-    }
-
-    if (shortclose - shortopen !== 0) {
-        sidee = 'Sell';
-        posSidee = 'Short';
-        qty = Math.abs(shortclose - shortopen)
-        return { sidee, posSidee, qty, symbol }
-
-    }
+    return { sidee, posSidee, qty, symbol }
 
 }
 
@@ -478,7 +472,7 @@ const cancleLimitOrder = async (id, pair, posSide) => {
 
 }
 
-const updateOrder = async (pair, posSide, qty) => {
+const placeTakeProfitOrder = async (pair, posSide, qty, cp, tp) => {
     try {
         let { apiKey, apiSecret, testnet } = readApiCredentials();
         if (!apiKey || !apiSecret) throw new Error('API credentials are missing');
@@ -486,17 +480,29 @@ const updateOrder = async (pair, posSide, qty) => {
         let URL = testnet ? TESTNET_API_URL : PUBLIC_API_URL;
         if (!URL) throw new Error('Invalid URL');
 
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const unixTimestamp = Math.floor(today.getTime() / 1000);
-        let api = `${URL}/api-data/g-futures/orders?symbol=${pair}&start=${unixTimestamp}&limit=200`;
-        const currentUnixEpochTime = Math.floor(Date.now() / 1000) + 60;
-        const sigdata = `/api-data/g-futures/orderssymbol=${pair}&start=${unixTimestamp}&limit=200${currentUnixEpochTime}`;
-        const signature = CryptoJS.HmacSHA256(sigdata, apiSecret).toString();
+        const clOrdID = cryptoRandomString({ length: 40 })
+        const closeOnTrigger = false;
+        const ordType = 'MarketIfTouched';
+        const orderQtyRq = qty;
+        const priceRp = cp;
+        const side = posSide === 'Long' ? 'Sell' : 'Buy';
+        const stopPxRp = tp;
+        const symbol = pair;
+        const timeInForce = 'ImmediateOrCancel';
+        const triggerType = 'ByLastPrice';
+        const reduceOnly = false;
 
-        let response;
+
+        let apiEndPoint = `${URL}/g-orders/create?clOrdID=${clOrdID}&closeOnTrigger=${closeOnTrigger}&reduceOnly=${reduceOnly}&ordType=${ordType}&orderQtyRq=${orderQtyRq}&priceRp=${priceRp}&side=${side}&posSide=${posSide}&stopPxRp=${stopPxRp}&symbol=${symbol}&timeInForce=${timeInForce}&triggerType=${triggerType}`;
+
+        const currentUnixEpochTime = Math.floor(Date.now() / 1000) + 60;
+        const sigdata = `/g-orders/createclOrdID=${clOrdID}&closeOnTrigger=${closeOnTrigger}&reduceOnly=${reduceOnly}&ordType=${ordType}&orderQtyRq=${orderQtyRq}&priceRp=${priceRp}&side=${side}&posSide=${posSide}&stopPxRp=${stopPxRp}&symbol=${symbol}&timeInForce=${timeInForce}&triggerType=${triggerType}${currentUnixEpochTime}`;
+        const signature = CryptoJS.HmacSHA256(sigdata, apiSecret).toString();
+        console.log(apiEndPoint);
+
+
         try {
-            response = await axios.get(api, {
+            let response = await axios.put(apiEndPoint, null, {
                 headers: {
                     'x-phemex-access-token': apiKey,
                     'x-phemex-request-expiry': currentUnixEpochTime,
@@ -507,40 +513,8 @@ const updateOrder = async (pair, posSide, qty) => {
             throw new Error(`Error in GET request: ${error.message}`);
         }
 
-        if (!response.data || !response.data.data || !response.data.data.rows) {
-            throw new Error('Unexpected response structure from GET request');
-        }
-
-        const id = response.data.data.rows.at(1).orderId;
-        if (!id) throw new Error('Order ID not found');
-
-        qty = qty.toFixed(4);
-
-        let apiEndPoint1 = `${URL}/g-orders/replace?orderID=${id}&symbol=${pair}&posSide=${posSide}&orderQtyRq=${qty}`;
-        const sigdata1 = `/g-orders/replaceorderID=${id}&symbol=${pair}&posSide=${posSide}&orderQtyRq=${qty}${currentUnixEpochTime}`;
-        const signature1 = CryptoJS.HmacSHA256(sigdata1, apiSecret).toString();
-
-        let response1;
-        try {
-            [response1] = await Promise.all([
-                axios.put(apiEndPoint1, null, {
-                    headers: {
-                        'x-phemex-access-token': apiKey,
-                        'x-phemex-request-expiry': currentUnixEpochTime,
-                        'x-phemex-request-signature': signature1
-                    }
-                })
-            ]);
-        } catch (error) {
-            throw new Error(`Error in PUT request: ${error.message}`);
-        }
-
-        if (!response1.data) {
-            throw new Error('Unexpected response structure from PUT request');
-        }
     } catch (error) {
         console.error('Error in updateOrder function:', error.message);
-        // Handle or re-throw the error as needed
         throw error;
     }
 };
@@ -680,14 +654,14 @@ app.post('/trade', async (req, res) => {
 
             const currentUnixEpochTime = Math.floor(Date.now() / 1000) + 60;
             let signature;
-            apiEndPoint = apiEndPoint + `?clOrdID=${clOrdID}&symbol=${symbol}&reduceOnly=${reduceOnly}&closeOnTrigger=${closeOnTrigger}&orderQtyRq=${orderQtyRq}&ordType=${ordType}&side=${side}&posSide=${posSide}&timeInForce=${timeInForce}&takeProfitRp=${takeProfitRp}&stopLossRp=${stopLossRp}`;
+            apiEndPoint = apiEndPoint + `?clOrdID=${clOrdID}&symbol=${symbol}&reduceOnly=${reduceOnly}&closeOnTrigger=${closeOnTrigger}&orderQtyRq=${orderQtyRq}&ordType=${ordType}&side=${side}&posSide=${posSide}&timeInForce=${timeInForce}&stopLossRp=${stopLossRp}`;
             if (orderType === 1) {
-                const sigData = '/g-orders/create' + `clOrdID=${clOrdID}&symbol=${symbol}&reduceOnly=${reduceOnly}&closeOnTrigger=${closeOnTrigger}&orderQtyRq=${orderQtyRq}&ordType=${ordType}&side=${side}&posSide=${posSide}&timeInForce=${timeInForce}&takeProfitRp=${takeProfitRp}&stopLossRp=${stopLossRp}` + currentUnixEpochTime;
+                const sigData = '/g-orders/create' + `clOrdID=${clOrdID}&symbol=${symbol}&reduceOnly=${reduceOnly}&closeOnTrigger=${closeOnTrigger}&orderQtyRq=${orderQtyRq}&ordType=${ordType}&side=${side}&posSide=${posSide}&timeInForce=${timeInForce}&stopLossRp=${stopLossRp}` + currentUnixEpochTime;
                 signature = CryptoJS.HmacSHA256(sigData, apiSecret).toString();
 
             } else {
                 apiEndPoint = apiEndPoint + `&priceRp=${priceRp}`
-                const sigData = '/g-orders/create' + `clOrdID=${clOrdID}&symbol=${symbol}&reduceOnly=${reduceOnly}&closeOnTrigger=${closeOnTrigger}&orderQtyRq=${orderQtyRq}&ordType=${ordType}&side=${side}&posSide=${posSide}&timeInForce=${timeInForce}&takeProfitRp=${takeProfitRp}&stopLossRp=${stopLossRp}&priceRp=${priceRp}` + currentUnixEpochTime;
+                const sigData = '/g-orders/create' + `clOrdID=${clOrdID}&symbol=${symbol}&reduceOnly=${reduceOnly}&closeOnTrigger=${closeOnTrigger}&orderQtyRq=${orderQtyRq}&ordType=${ordType}&side=${side}&posSide=${posSide}&timeInForce=${timeInForce}&stopLossRp=${stopLossRp}&priceRp=${priceRp}` + currentUnixEpochTime;
                 signature = CryptoJS.HmacSHA256(sigData, apiSecret).toString();
             }
 
@@ -700,11 +674,16 @@ app.post('/trade', async (req, res) => {
                         'x-phemex-request-signature': signature
                     }
                 });
+
+                if (data.data.code === 0) {
+                    await placeTakeProfitOrder(pair, posSide, orderQtyRq, currentPrice, takeProfitRp);
+
+                }
                 if (Number(trailingStopLoss) !== 0) {
-                    setTimeout(async () => {
-                        await updateOrder(pair, signal, orderQtyRq / 2);
-                        await placeTrailingSl(pair, signal, takeProfitRp)
-                    }, 5000);
+                    // setTimeout(async () => {
+                    //     await updateOrder(pair, signal, orderQtyRq / 2);
+                    //     await placeTrailingSl(pair, signal, takeProfitRp)
+                    // }, 5000);
                 }
                 res.json(data.data);
                 if (data.data.code && data.data.code !== 0) {
@@ -718,8 +697,8 @@ app.post('/trade', async (req, res) => {
                 }
                 if (orderType === 3) {
                     setTimeout(async () => {
-                        await updateOrder(pair, signal, orderQtyRq / 2);
-                        await placeTrailingSl(pair, signal, takeProfitRp);
+                        // await updateOrder(pair, signal, orderQtyRq / 2);
+                        // await placeTrailingSl(pair, signal, takeProfitRp);
                         await cancleLimitOrder(clOrdID, pair, posSide);
                     }, Number(canclelimitOrderTime) * 1000);
                 }
