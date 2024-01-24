@@ -1,18 +1,19 @@
 {
   "discordWebhook": "https://discord.com/api/webhooks/1192153719672942652/6wwDmO6I2IIiyXfUHVa3J-6w5IRlCjOmFuNHKgUIKcHmWXvClq7R22qjEYV0ZegPvBW2",
-  "orderType": 1,
+  "orderType": 3,
   "marginMode": 2,
   "posMode": 2,
   "apiKey": "e30110f6-c866-47e9-a6eb-1179edbdd562",
   "apiSecret": "B-nIAxurgM20oCBGsIaYAYS5601SuBf8u45u5E3cNWw5NjYxMmEwMC1jMWFjLTRkMTUtYjNiMi0zNTM2ZDQ3MjJjNTc",
-  "leverage": "25",
-  "takeProfit": "5",
+  "leverage": "20",
+  "takeProfit": "10",
   "stopLoss": "5",
   "trailingStopLoss": "2",
-  "limitDistance": "1",
+  "limitDistance": "0.1",
   "dailyProfitThreshold": "200",
-  "dailyLossThreshold": "200",
+  "dailyLossThreshold": "1000",
   "maxUSDTperTrade": "200",
-  "canclelimitOrderTime": "20",
-  "testnet": true
+  "canclelimitOrderTime": "10",
+  "testnet": true,
+  "trailingsl": true
 }

@@ -243,50 +243,52 @@ const getCurrentPrice = async (symbol) => {
 };
 
 const getLastTradeDirection = async (pair) => {
+    try {
+        let { apiKey, apiSecret, testnet, marginMode } = readApiCredentials();
+        const currentUnixEpochTime = Math.floor(Date.now() / 1000) + 60;
+        let URL = testnet === false ? PUBLIC_API_URL : TESTNET_API_URL;
+        let api = `${URL}/g-accounts/positions?currency=USDT`
 
-    let { apiKey, apiSecret, testnet } = readApiCredentials();
-    const currentUnixEpochTime = Math.floor(Date.now() / 1000) + 60;
-    let URL = testnet === false ? PUBLIC_API_URL : TESTNET_API_URL;
-    let api = `${URL}/api-data/g-futures/trades?symbol=${pair}&limit=1`
+        const sigdata = `/g-accounts/positionscurrency=USDT` + currentUnixEpochTime;
+        const signature = CryptoJS.HmacSHA256(sigdata, apiSecret).toString();
+        const crossMargin = marginMode === 1 ? true : false;
 
-    const sigdata = `/api-data/g-futures/tradessymbol=${pair}&limit=1` + currentUnixEpochTime;
-    const signature = CryptoJS.HmacSHA256(sigdata, apiSecret).toString();
-
-    let response = await axios.get(api, {
-        headers: {
-            'x-phemex-access-token': apiKey,
-            'x-phemex-request-expiry': currentUnixEpochTime,
-            'x-phemex-request-signature': signature
+        let response = await axios.get(api, {
+            headers: {
+                'x-phemex-access-token': apiKey,
+                'x-phemex-request-expiry': currentUnixEpochTime,
+                'x-phemex-request-signature': signature
+            }
+        });
+        response = response.data;
+        if (!response || response.code !== 0) {
+            throw new Error("Failed to fetch positions or API returned an error");
         }
-    });
-    response = response.data;
 
-    let sidee = 'Sell';
-    let posSidee = 'Long';
-    let qty = '0.01';
-    let symbol = pair;
-    let index = -1;
-    console.log(response.data.rows);
+        let positions = response.data.positions.filter((position) => {
+            return (position.symbol === pair && position.crossMargin === crossMargin && position.side !== 'None')
+        });
 
-    if (response.data && response.data.rows && response.data.rows.length > 0) {
+        let sidee = 'Sell';
+        let posSidee = 'Long';
+        let qty = '0.01';
+        let symbol = pair;
 
-        if (response.data.rows[0].symbol === pair) {
-            index = 0;
+        if (positions.length > 0) {
+            sidee = positions[0].side;
+            posSidee = positions[0].posSide;
+            qty = positions[0].sizeRq;
         }
+
+        return { sidee, posSidee, qty, symbol };
+
+    } catch (error) {
+        console.error('Error fetching last trade direction:', error);
+        // Depending on your use case, you might want to throw the error, return a default value, or handle it differently.
+        throw error; // Re-throwing the error to be handled by the caller.
     }
-
-    if (index > -1) {
-        sidee = response.data.rows[index].side
-        posSidee = response.data.rows[index].posSide
-        qty = response.data.rows[index].orderQtyRq
-        symbol = response.data.rows[index].symbol
-
-    }
-
-
-    return { sidee, posSidee, qty, symbol }
-
 }
+
 
 const cancelAllOrders = async (pair) => {
     try {
@@ -438,12 +440,19 @@ const setLeverage = async (symbol) => {
                     'x-phemex-request-signature': signature
                 }
             });
+            if (response.data.code === 0) {
+                return true;
+            } else {
+                return false;
+            }
         } catch (networkError) {
             console.error(`Network error: ${networkError.message}`);
+            return false;
 
         }
     } catch (error) {
         console.error(`Failed to process leverage setting: ${error.message}`);
+        return false;
     }
 };
 
@@ -472,7 +481,7 @@ const cancleLimitOrder = async (id, pair, posSide) => {
 
 }
 
-const placeTakeProfitOrder = async (pair, posSide, qty, cp, tp) => {
+const placeTakeProfitOrder = async (pair, posSide, qty, cp, tp, tsl) => {
     try {
         let { apiKey, apiSecret, testnet } = readApiCredentials();
         if (!apiKey || !apiSecret) throw new Error('API credentials are missing');
@@ -481,16 +490,16 @@ const placeTakeProfitOrder = async (pair, posSide, qty, cp, tp) => {
         if (!URL) throw new Error('Invalid URL');
 
         const clOrdID = cryptoRandomString({ length: 40 })
-        const closeOnTrigger = false;
+        const closeOnTrigger = tsl === true ? false : true;
         const ordType = 'MarketIfTouched';
-        const orderQtyRq = qty;
+        const orderQtyRq = tsl === true ? qty : 0;
         const priceRp = cp;
         const side = posSide === 'Long' ? 'Sell' : 'Buy';
         const stopPxRp = tp;
         const symbol = pair;
         const timeInForce = 'ImmediateOrCancel';
         const triggerType = 'ByLastPrice';
-        const reduceOnly = false;
+        const reduceOnly = tsl === true ? true : false;
 
 
         let apiEndPoint = `${URL}/g-orders/create?clOrdID=${clOrdID}&closeOnTrigger=${closeOnTrigger}&reduceOnly=${reduceOnly}&ordType=${ordType}&orderQtyRq=${orderQtyRq}&priceRp=${priceRp}&side=${side}&posSide=${posSide}&stopPxRp=${stopPxRp}&symbol=${symbol}&timeInForce=${timeInForce}&triggerType=${triggerType}`;
@@ -498,7 +507,6 @@ const placeTakeProfitOrder = async (pair, posSide, qty, cp, tp) => {
         const currentUnixEpochTime = Math.floor(Date.now() / 1000) + 60;
         const sigdata = `/g-orders/createclOrdID=${clOrdID}&closeOnTrigger=${closeOnTrigger}&reduceOnly=${reduceOnly}&ordType=${ordType}&orderQtyRq=${orderQtyRq}&priceRp=${priceRp}&side=${side}&posSide=${posSide}&stopPxRp=${stopPxRp}&symbol=${symbol}&timeInForce=${timeInForce}&triggerType=${triggerType}${currentUnixEpochTime}`;
         const signature = CryptoJS.HmacSHA256(sigdata, apiSecret).toString();
-        console.log(apiEndPoint);
 
 
         try {
@@ -519,8 +527,13 @@ const placeTakeProfitOrder = async (pair, posSide, qty, cp, tp) => {
     }
 };
 
+
+
+
+
 app.post('/trade', async (req, res) => {
     try {
+
 
         let parsedBody;
         try {
@@ -567,10 +580,10 @@ app.post('/trade', async (req, res) => {
                 limitDistance,
                 maxUSDTperTrade,
                 testnet,
-                trailingStopLoss,
                 canclelimitOrderTime,
                 leverage,
-                discordWebhook
+                discordWebhook,
+                trailingsl
             } = readApiCredentials();
 
             leverage = Number(leverage);
@@ -650,7 +663,7 @@ app.post('/trade', async (req, res) => {
                         (priceRp + (priceRp * stopLoss / (leverage * 100)))
                 ) :
                 stopLossRp;
-            orderQtyRq = orderType === 3 ? (maxUSDTperTrade / priceRp) : orderQtyRq;
+            orderQtyRq = orderType === 3 ? (maxUSDTperTrade * leverage / priceRp) : orderQtyRq;
 
             const currentUnixEpochTime = Math.floor(Date.now() / 1000) + 60;
             let signature;
@@ -675,17 +688,28 @@ app.post('/trade', async (req, res) => {
                     }
                 });
 
-                if (data.data.code === 0) {
-                    await placeTakeProfitOrder(pair, posSide, orderQtyRq, currentPrice, takeProfitRp);
+                orderQtyRq = trailingsl === true ? orderQtyRq / 2 : orderQtyRq;
 
+                if (data.data.code === 0 && orderType !== 3) {
+                    await placeTakeProfitOrder(pair, posSide, orderQtyRq, currentPrice, takeProfitRp, trailingsl);
+                    if (trailingsl === true) {
+                        await placeTrailingSl(pair, posSide, takeProfitRp)
+                    }
                 }
-                if (Number(trailingStopLoss) !== 0) {
-                    // setTimeout(async () => {
-                    //     await updateOrder(pair, signal, orderQtyRq / 2);
-                    //     await placeTrailingSl(pair, signal, takeProfitRp)
-                    // }, 5000);
+
+                if (orderType === 3 && data.data.code === 0) {
+                   
+                    setTimeout(async () => {
+                        await cancleLimitOrder(clOrdID, pair, posSide);
+                        await placeTakeProfitOrder(pair, posSide, orderQtyRq, currentPrice, takeProfitRp, trailingsl);
+                        if (trailingsl === true) {
+                            await placeTrailingSl(pair, posSide, takeProfitRp)
+                        }
+
+
+                    }, Number(canclelimitOrderTime) * 1000);
                 }
-                res.json(data.data);
+
                 if (data.data.code && data.data.code !== 0) {
                     const payload = {
                         content: "Trade Could not be processed due to .." + data.data.msg + "  Error from backend (No issues at bot side)"
@@ -695,13 +719,11 @@ app.post('/trade', async (req, res) => {
                     });
 
                 }
-                if (orderType === 3) {
-                    setTimeout(async () => {
-                        // await updateOrder(pair, signal, orderQtyRq / 2);
-                        // await placeTrailingSl(pair, signal, takeProfitRp);
-                        await cancleLimitOrder(clOrdID, pair, posSide);
-                    }, Number(canclelimitOrderTime) * 1000);
-                }
+
+
+                res.json(data.data);
+
+
             } catch (networkError) {
                 console.error(`Network error: ${networkError.message}`);
 

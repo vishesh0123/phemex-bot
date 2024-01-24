@@ -14,6 +14,7 @@ function BotSettingPage() {
     const [leverageMode, setLeverageMode] = useState(Number(file.marginMode))
     const [posMode, setPosMode] = useState(Number(file.posMode))
     const [testnet, setTestnet] = useState(file.testnet);
+    const [trailingSL, setTrailingSL] = useState(file.trailingsl)
 
 
     const saveSettingInconfig = async () => {
@@ -23,7 +24,8 @@ function BotSettingPage() {
             orderType: orderType,
             marginMode: leverageMode,
             posMode: posMode,
-            testnet: testnet
+            testnet: testnet,
+            trailingsl: trailingSL
         }
         try {
             const response = await axios.post('http://127.0.0.1:8080/save-config', merged);
@@ -276,6 +278,60 @@ function BotSettingPage() {
                             >
                                 <MenuItem sx={{ 'fontWeight': 'bold' }} value={1} >MAINNET</MenuItem>
                                 <MenuItem sx={{ 'fontWeight': 'bold' }} value={2}>TESTNET</MenuItem>
+
+                            </Select>
+                        </FormControl>
+                        <FormControl sx={{
+                            width: '400px',
+                            mt: '20px',
+                            ml: '20px',
+                            color: 'white', // Default color
+                            '& .MuiInputLabel-root': { // Label styles
+                                color: 'white', // Label color
+                            },
+                            '& .MuiOutlinedInput-root': {
+                                '& fieldset': {
+                                    borderColor: 'white', // Default border color
+                                },
+                                '&:hover fieldset': {
+                                    borderColor: 'white', // Hover border color
+                                },
+                                '&.Mui-focused fieldset': {
+                                    borderColor: 'white', // Focused border color
+                                },
+                                '& input': {
+                                    color: 'white', // Input text color
+                                    fontWeight: 'bold'
+                                },
+                            },
+                            '& .MuiSelect-select': {
+                                color: 'white', // Select text color
+                                fontWeight: 'bold'
+                            },
+                            '& .MuiSvgIcon-root': { // Dropdown icon color
+                                color: 'white'
+                            }
+                        }}>
+                            <InputLabel id='ordertype' sx={{ color: 'white !important', fontWeight: 'bold' }}>trailingSL</InputLabel>
+                            <Select
+                                labelId='ordertype'
+                                label='Order Type'
+                                sx={{
+                                    '& .MuiSelect-icon': {
+                                        color: 'white', // Dropdown icon color
+                                    },
+                                }}
+                                value={trailingSL === true ? 1 : 2}
+                                onChange={(event) => {
+                                    if (event.target.value === 1) {
+                                        setTrailingSL(true);
+                                    } else {
+                                        setTrailingSL(false);
+                                    }
+                                }}
+                            >
+                                <MenuItem sx={{ 'fontWeight': 'bold' }} value={1} >On</MenuItem>
+                                <MenuItem sx={{ 'fontWeight': 'bold' }} value={2}>Off</MenuItem>
 
                             </Select>
                         </FormControl>
