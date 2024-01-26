@@ -367,13 +367,15 @@ const closeLastPosition = async (pair) => {
 
 const placeTrailingSl = async (symbol, direction, tp) => {
     // Attempt to read the API credentials
-    let { apiKey, apiSecret, trailingStopLoss, testnet } = readApiCredentials(); // Ensure readApiCredentials() is properly error-handled.
+    let { apiKey, apiSecret, leverage, trailingStopLoss, testnet } = readApiCredentials(); // Ensure readApiCredentials() is properly error-handled.
     const clOrdID = cryptoRandomString({ length: 40 });
     const closeOnTrigger = true;
     const stopPxRp = tp;
     const ordType = 'Stop';
+    leverage = Number(leverage);
     // const orderQtyRq = qty;
-    let pegOffsetProportionRr = parseFloat(trailingStopLoss) / 100;
+    let tslPrice = tp - (tp * parseFloat(trailingStopLoss)/(leverage * 100));
+    let pegOffsetProportionRr = (tp - tslPrice) / tp;
     let pegPriceType = 'TrailingTakeProfitByProportionPeg';
     const posSide = direction;
     const side = direction === 'Long' ? 'Sell' : 'Buy';
