@@ -106,7 +106,7 @@ function LogsTradesPage() {
                             <TableCell sx={{ color: 'black', fontWeight: 'bold', fontSize:'18px' }}>DIRECTION</TableCell>
                             <TableCell sx={{ color: 'black', fontWeight: 'bold',fontSize:'18px'  }}>ORDER TYPE</TableCell>
                             <TableCell sx={{ color: 'black', fontWeight: 'bold', fontSize:'18px' }}>EXEC PRICE</TableCell>
-                            <TableCell sx={{ color: 'black', fontWeight: 'bold', fontSize:'18px' }}>ORDER</TableCell>
+                            <TableCell sx={{ color: 'black', fontWeight: 'bold', fontSize:'18px' }}>ORDER QTY</TableCell>
                             <TableCell sx={{ color: 'black', fontWeight: 'bold', fontSize:'18px' }}>EXEC QTY</TableCell>
                             <TableCell sx={{ color: 'black', fontWeight: 'bold', fontSize:'18px' }}>STATUS</TableCell>
                             <TableCell sx={{ color: 'black', fontWeight: 'bold', fontSize:'18px' }}>PNL</TableCell>
