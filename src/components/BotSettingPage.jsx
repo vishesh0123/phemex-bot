@@ -1,7 +1,6 @@
 import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, IconButton, InputLabel, MenuItem, Select, Typography } from '@mui/material';
 import React, { useState } from 'react';
 import KeyInput from './KeyInput';
-import SettingsIcon from '@mui/icons-material/Settings';
 import axios from 'axios';
 import file from '../../settings.json';
 import BotConfig from '../../bot.config';
@@ -51,23 +50,26 @@ function BotSettingPage() {
 
     return (
         <>
-            <Box sx={{ marginLeft: 'auto', marginRight: '10px' }}>
+            {/* <Box sx={{ marginLeft: 'auto', marginRight: '10px' }}>
                 <IconButton onClick={handleClickOpen} color="inherit" aria-label="settings">
                     <SettingsIcon />
                 </IconButton>
-            </Box>
-            <Dialog open={open} onClose={handleClose} >
-                <DialogTitle sx={{ background: 'black', textAlign: 'center', color: 'white', fontWeight: 'bold' }}>BOT CONFIGURATION</DialogTitle>
-                <DialogContent sx={{ background: 'black', padding: '20px' }}>
+            </Box> */}
+            {/* <Dialog open={open} onClose={handleClose} >
+                <DialogTitle sx={{ background: 'black', textAlign: 'center', color: 'black', fontWeight: 'bold' }}>BOT CONFIGURATION</DialogTitle>
+                <DialogContent sx={{ background: 'black', padding: '20px' }}> */}
                     <Box
                         sx={{
                             display: 'flex',
                             flexDirection: 'column',
                             alignItems: 'center',
-                            width: '500px',
-                            height: '1300px'
+                            width: `${(window.innerWidth * (1 / 3)) - 20}px`,
+                            height:`${window.innerHeight - 20}px`,
+                            
                         }}
+                        
                     >
+                        <img src="src/icons/phemex.svg" alt="Description" width='200px' height='200px' />
                         <KeyInput text='apiKey' type='password' setting={setting} saveSetting={saveSetting} value={file.apiKey} />
                         <KeyInput text='apiSecret' type='password' setting={setting} saveSetting={saveSetting} value={file.apiSecret} />
                         <KeyInput text='takeProfit' type='text' setting={setting} saveSetting={saveSetting} value={file.takeProfit} />
@@ -75,44 +77,51 @@ function BotSettingPage() {
                         <KeyInput text='trailingStopLoss' type='text' setting={setting} saveSetting={saveSetting} value={file.trailingStopLoss} />
 
                         <FormControl sx={{
-                            width: '400px',
-                            mt: '10px',
+                           width: `${(window.innerWidth * (1 / 3)) - 100}px`,
+                            mt: '20px',
                             ml: '20px',
                             pb: '10px',
-                            color: 'white',
+                            color: 'black',
                             fontWeight: 'bold',
                             '& .MuiInputLabel-root': {
-                                color: 'white',
+                                color: 'black',
+                                fontWeight: 'bold',
                             },
                             '& .MuiOutlinedInput-root': {
                                 '& fieldset': {
-                                    borderColor: 'white',
+                                    borderColor: 'black',
+                                    borderWidth:'2px'
                                 },
                                 '&:hover fieldset': {
-                                    borderColor: 'white',
+                                    borderColor: 'black',
+                                    borderWidth:'2px'
                                 },
                                 '&.Mui-focused fieldset': {
-                                    borderColor: 'white',
+                                    borderColor: 'black',
+                                    borderWidth:'2px'
                                 },
                                 '& input': {
-                                    color: 'white',
+                                    color: 'black',
+                                    fontWeight: 'bold',
                                 },
                             },
                             '& .MuiSelect-select': {
-                                color: 'white',
+                                color: 'black',
                                 fontWeight: 'bold'
                             },
                             '& .MuiSvgIcon-root': {
-                                color: 'white'
+                                color: 'black',
+                                fontWeight: 'bold'
+
                             }
                         }}>
-                            <InputLabel id='ordertype' sx={{ color: 'white !important', fontWeight: 'bold' }}>orderType</InputLabel>
+                            <InputLabel id='ordertype' sx={{ color: 'black !important', fontWeight: 'bold' }}>orderType</InputLabel>
                             <Select
                                 labelId='ordertype'
                                 label='Order Type'
                                 sx={{
                                     '& .MuiSelect-icon': {
-                                        color: 'white',
+                                        color: 'black',
                                     },
                                 }}
                                 value={orderType}
@@ -132,43 +141,46 @@ function BotSettingPage() {
                         <KeyInput text='canclelimitOrderTime' type='text' setting={setting} saveSetting={saveSetting} value={file.canclelimitOrderTime} />
                         <KeyInput text='discordWebhook' type='text' setting={setting} saveSetting={saveSetting} value={file.discordWebhook} />
                         <FormControl sx={{
-                            width: '400px',
+                         width: `${(window.innerWidth * (1 / 3)) - 100}px`,
                             mt: '20px',
                             ml: '20px',
-                            color: 'white',
+                            color: 'black',
                             '& .MuiInputLabel-root': { // Label styles
-                                color: 'white', // Label color
+                                color: 'black', // Label color
                             },
                             '& .MuiOutlinedInput-root': {
                                 '& fieldset': {
-                                    borderColor: 'white',
+                                    borderColor: 'black',
+                                    borderWidth:'2px'
                                 },
                                 '&:hover fieldset': {
-                                    borderColor: 'white', // Hover border color
+                                    borderColor: 'black', // Hover border color
+                                    borderWidth:'2px'
                                 },
                                 '&.Mui-focused fieldset': {
-                                    borderColor: 'white',
+                                    borderColor: 'black',
+                                    borderWidth:'2px'
                                 },
                                 '& input': {
-                                    color: 'white',
+                                    color: 'black',
                                     fontWeight: 'bold'
                                 },
                             },
                             '& .MuiSelect-select': {
-                                color: 'white', // Select text color
+                                color: 'black', // Select text color
                                 fontWeight: 'bold'
                             },
                             '& .MuiSvgIcon-root': { // Dropdown icon color
-                                color: 'white'
+                                color: 'black'
                             }
                         }}>
-                            <InputLabel id='ordertype' sx={{ color: 'white !important', fontWeight: 'bold' }}>marginMode</InputLabel>
+                            <InputLabel id='ordertype' sx={{ color: 'black !important', fontWeight: 'bold' }}>marginMode</InputLabel>
                             <Select
                                 labelId='ordertype'
                                 label='Order Type'
                                 sx={{
                                     '& .MuiSelect-icon': {
-                                        color: 'white', // Dropdown icon color
+                                        color: 'black', // Dropdown icon color
                                     },
                                 }}
                                 value={leverageMode}
@@ -180,43 +192,44 @@ function BotSettingPage() {
                             </Select>
                         </FormControl>
                         <FormControl sx={{
-                            width: '400px',
+                           width: `${(window.innerWidth * (1 / 3)) - 100}px`,
                             mt: '20px',
                             ml: '20px',
-                            color: 'white', // Default color
+                            color: 'black', // Default color
                             '& .MuiInputLabel-root': { // Label styles
-                                color: 'white', // Label color
+                                color: 'black', // Label color
                             },
                             '& .MuiOutlinedInput-root': {
                                 '& fieldset': {
-                                    borderColor: 'white', // Default border color
+                                    borderColor: 'black', // Default border color
+                                    borderWidth:'2px'
                                 },
                                 '&:hover fieldset': {
-                                    borderColor: 'white', // Hover border color
+                                    borderColor: 'black', // Hover border color
                                 },
                                 '&.Mui-focused fieldset': {
-                                    borderColor: 'white', // Focused border color
+                                    borderColor: 'black', // Focused border color
                                 },
                                 '& input': {
-                                    color: 'white', // Input text color
+                                    color: 'black', // Input text color
                                     fontWeight: 'bold'
                                 },
                             },
                             '& .MuiSelect-select': {
-                                color: 'white', // Select text color
+                                color: 'black', // Select text color
                                 fontWeight: 'bold'
                             },
                             '& .MuiSvgIcon-root': { // Dropdown icon color
-                                color: 'white'
+                                color: 'black'
                             }
                         }}>
-                            <InputLabel id='ordertype' sx={{ color: 'white !important', fontWeight: 'bold' }}>posMode</InputLabel>
+                            <InputLabel id='ordertype' sx={{ color: 'black !important', fontWeight: 'bold' }}>posMode</InputLabel>
                             <Select
                                 labelId='ordertype'
                                 label='Order Type'
                                 sx={{
                                     '& .MuiSelect-icon': {
-                                        color: 'white', // Dropdown icon color
+                                        color: 'black', // Dropdown icon color
                                     },
                                 }}
                                 value={posMode}
@@ -228,43 +241,44 @@ function BotSettingPage() {
                             </Select>
                         </FormControl>
                         <FormControl sx={{
-                            width: '400px',
+                            width: `${(window.innerWidth * (1 / 3)) - 100}px`,
                             mt: '20px',
                             ml: '20px',
-                            color: 'white', // Default color
+                            color: 'black', // Default color
                             '& .MuiInputLabel-root': { // Label styles
-                                color: 'white', // Label color
+                                color: 'black', // Label color
                             },
                             '& .MuiOutlinedInput-root': {
                                 '& fieldset': {
-                                    borderColor: 'white', // Default border color
+                                    borderColor: 'black', // Default border color
+                                    borderWidth:'2px'
                                 },
                                 '&:hover fieldset': {
-                                    borderColor: 'white', // Hover border color
+                                    borderColor: 'black', // Hover border color
                                 },
                                 '&.Mui-focused fieldset': {
-                                    borderColor: 'white', // Focused border color
+                                    borderColor: 'black', // Focused border color
                                 },
                                 '& input': {
-                                    color: 'white', // Input text color
+                                    color: 'black', // Input text color
                                     fontWeight: 'bold'
                                 },
                             },
                             '& .MuiSelect-select': {
-                                color: 'white', // Select text color
+                                color: 'black', // Select text color
                                 fontWeight: 'bold'
                             },
                             '& .MuiSvgIcon-root': { // Dropdown icon color
-                                color: 'white'
+                                color: 'black'
                             }
                         }}>
-                            <InputLabel id='ordertype' sx={{ color: 'white !important', fontWeight: 'bold' }}>testnet/mainnet</InputLabel>
+                            <InputLabel id='ordertype' sx={{ color: 'black !important', fontWeight: 'bold' }}>testnet/mainnet</InputLabel>
                             <Select
                                 labelId='ordertype'
                                 label='Order Type'
                                 sx={{
                                     '& .MuiSelect-icon': {
-                                        color: 'white', // Dropdown icon color
+                                        color: 'black', // Dropdown icon color
                                     },
                                 }}
                                 value={testnet === false ? 1 : 2}
@@ -282,43 +296,44 @@ function BotSettingPage() {
                             </Select>
                         </FormControl>
                         <FormControl sx={{
-                            width: '400px',
+                          width: `${(window.innerWidth * (1 / 3)) - 100}px`,
                             mt: '20px',
                             ml: '20px',
-                            color: 'white', // Default color
+                            color: 'black', // Default color
                             '& .MuiInputLabel-root': { // Label styles
-                                color: 'white', // Label color
+                                color: 'black', // Label color
                             },
                             '& .MuiOutlinedInput-root': {
                                 '& fieldset': {
-                                    borderColor: 'white', // Default border color
+                                    borderColor: 'black', // Default border color
+                                    borderWidth:'2px'
                                 },
                                 '&:hover fieldset': {
-                                    borderColor: 'white', // Hover border color
+                                    borderColor: 'black', // Hover border color
                                 },
                                 '&.Mui-focused fieldset': {
-                                    borderColor: 'white', // Focused border color
+                                    borderColor: 'black', // Focused border color
                                 },
                                 '& input': {
-                                    color: 'white', // Input text color
+                                    color: 'black', // Input text color
                                     fontWeight: 'bold'
                                 },
                             },
                             '& .MuiSelect-select': {
-                                color: 'white', // Select text color
+                                color: 'black', // Select text color
                                 fontWeight: 'bold'
                             },
                             '& .MuiSvgIcon-root': { // Dropdown icon color
-                                color: 'white'
+                                color: 'black'
                             }
                         }}>
-                            <InputLabel id='ordertype' sx={{ color: 'white !important', fontWeight: 'bold' }}>trailingSL</InputLabel>
+                            <InputLabel id='ordertype' sx={{ color: 'black !important', fontWeight: 'bold' }}>trailingSL</InputLabel>
                             <Select
                                 labelId='ordertype'
                                 label='Order Type'
                                 sx={{
                                     '& .MuiSelect-icon': {
-                                        color: 'white', // Dropdown icon color
+                                        color: 'black', // Dropdown icon color
                                     },
                                 }}
                                 value={trailingSL === true ? 1 : 2}
@@ -339,27 +354,44 @@ function BotSettingPage() {
                         <Button
                             sx={{
                                 marginTop: '20px',
-                                color: 'white',
-                                border: '1px solid white',
+                                color: 'black',
+                                border: '2px solid black',
                                 fontSize: '0.8rem',
                                 fontWeight: 'bold',
-                                width: '200px',
-                                height: '50px'
+                                width: `${(window.innerWidth * (1 / 3)) - 170}px`,
+                                height: '50px',
+                                
 
                             }}
                             onClick={async () => { await saveSettingInconfig() }}
                         >
                             SAVE SETTING
                         </Button>
+                        <Button
+                            sx={{
+                                marginTop: '20px',
+                                color: 'black',
+                                fontSize: '0.8rem',
+                                fontWeight: 'bold',
+                                width: '200px',
+                                height: '50px',
+                                
+
+                            }}
+                        >
+                            
+                        </Button>
+                       
 
                     </Box>
-                </DialogContent>
+                    
+                {/* </DialogContent>
                 <DialogActions sx={{ background: 'black', justifyContent: 'center' }}>
                     <Button onClick={handleClose} variant="outlined">
                         Close
                     </Button>
                 </DialogActions>
-            </Dialog>
+            </Dialog> */}
         </>
     );
 }

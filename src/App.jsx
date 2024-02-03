@@ -26,10 +26,10 @@ function App() {
     <>
       <ThemeProvider theme={theme}>
         <Box display='flex' width='100%' flexDirection='row'>
-          <HomePage ml='15px' mt='15px' />
+          <HomePage  mt='15px' />
           <Box>
             <LogsTradesPage />
-            <LogsOrdersPage />
+            {/* <LogsOrdersPage /> */}
           </Box>
         </Box>
       </ThemeProvider>

@@ -13,7 +13,7 @@ function KeyInput({ text, type, setting, saveSetting, value }) {
                     color: 'secondary',
                     sx: {
                         fontWeight: 'bold',
-                        color: 'white' // This will make the label text white
+                        color: 'black' // This will make the label text white
                     }
                 }}
                 InputProps={{
@@ -25,24 +25,29 @@ function KeyInput({ text, type, setting, saveSetting, value }) {
                 }}
                 // color='secondary'
                 sx={{
-                    width: '400px',
+                    width: `${(window.innerWidth * (1 / 3)) - 100}px`,
                     mt: 3,
                     ml: '20px',
                     '& .MuiOutlinedInput-root': {
                         height: '40px',
-                        color: 'white', // Text color
+                        color: 'black', // Text color
+                        fontWeight:'bold',
                         '& fieldset': {
-                            borderColor: 'white', // Border color
+                            borderColor: 'black', // Border color
+                            borderWidth:'2px'
                         },
                         '&:hover fieldset': {
-                            borderColor: 'white', // Border color (hover state)
+                            borderColor: 'black', // Border color (hover state)
+                            borderWidth:'2px'
                         },
                         '&.Mui-focused fieldset': {
-                            borderColor: 'white', // Border color (focused state)
+                            borderColor: 'black', // Border color (focused state)
+                            borderWidth:'2px'
                         },
                     },
                     '& .MuiTypography-root': {
-                        color: 'white'
+                        color: 'black',
+                        fontWeight:'bold',
                     }
 
                 }}

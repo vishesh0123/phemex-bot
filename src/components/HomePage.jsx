@@ -60,35 +60,20 @@ function HomePage({ ml, mt }) {
     return (
         <>
             <Box sx={{
-                width: '500px',
-                height: '650px',
-                border: '5px solid white',
-                marginLeft: ml,
+                width: `${(window.innerWidth * (1 / 3))}px`,
+                // height: `${window.innerHeight - 20}px`,
+                // marginLeft: ml,
                 marginTop: mt,
+                pr:'30px',
                 position: 'fixed',
                 display: 'flex',
-                justifyContent: 'space-evenly',
-                alignItems: 'center',
-                flexDirection: 'column'
+                justifyContent: 'start',
+                alignItems: 'start',
+                flexDirection: 'column',
+                overflowY: 'auto',
             }}
             >
-                <Box width='450px' display='flex' justifyContent='space-between' alignItems='center'>
-                    <BotSettingPage />
-                </Box>
-
-                <Box width='450px' display='flex' justifyContent='space-between' alignItems='center'>
-                    <TradingMode />
-                    <PairsMenu
-                        pairs={pairs}
-                        setPairs={setPairs}
-                        selectedPair={selectedPair}
-                        setSelectedPair={setSelectedPair}
-                    />
-                </Box>
-
-
-                {<PlaceOrderPerps pairs={pairs} selectedPair={selectedPair} />}
-                <Box sx={{ height: '50px' }}>
+                {/* <Box sx={{ height: '50px' }}>
                     <Typography
                         sx=
                         {{
@@ -97,11 +82,28 @@ function HomePage({ ml, mt }) {
                             fontWeight: 'bold'
                         }}
                     >PNL : {pnl.toString().slice(0, 6) + ` USDT`}</Typography>
-                    <Typography sx={{ 'fontWeight': 'bold' }}>USDT : {balance} &nbsp; USED : {usedBalance}</Typography>
+                    <Typography sx={{ 'fontWeight': 'bold' , color:'black' }}>USDT : {balance} &nbsp; USED : {usedBalance}</Typography>
                     <Typography sx={{ 'fontWeight': 'bold', color: server ? 'green' : 'red' }}>SERVER STATUS: {server ? 'Live' : 'Not Working'}  &nbsp;</Typography>
 
 
-                </Box>
+                </Box> */}
+                {/* <Box width='450px' display='flex' justifyContent='space-between' alignItems='center'> */}
+                    <BotSettingPage />
+                {/* </Box> */}
+
+                {/* <Box width='450px' display='flex' justifyContent='space-between' alignItems='center'>
+                    <TradingMode />
+                    <PairsMenu
+                        pairs={pairs}
+                        setPairs={setPairs}
+                        selectedPair={selectedPair}
+                        setSelectedPair={setSelectedPair}
+                    />
+                </Box> */}
+
+
+                {/* {<PlaceOrderPerps pairs={pairs} selectedPair={selectedPair} />} */}
+                
 
             </Box>
         </>
